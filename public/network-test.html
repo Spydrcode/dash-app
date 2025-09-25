@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Network Connectivity Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .test-item { margin: 15px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .testing { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🌐 Network Connectivity Test</h1>
+    <p>This tool helps test which address your clients should use to access the Dash App.</p>
+    
+    <button onclick="testConnections()">Test All Addresses</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const testAddresses = [
+            'http://192.168.1.129:3000',
+            'http://169.254.155.45:3000',
+            'http://localhost:3000'
+        ];
+
+        async function testConnection(url) {
+            try {
+                const response = await fetch(url, { 
+                    method: 'GET', 
+                    mode: 'cors',
+                    timeout: 5000 
+                });
+                return { success: true, status: response.status };
+            } catch (error) {
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testConnections() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Testing connections...</h2>';
+            
+            for (const address of testAddresses) {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'test-item testing';
+                testDiv.innerHTML = `<strong>Testing:</strong> ${address}<br>Please wait...`;
+                resultsDiv.appendChild(testDiv);
+                
+                const result = await testConnection(address);
+                
+                if (result.success) {
+                    testDiv.className = 'test-item success';
+                    testDiv.innerHTML = `
+                        <strong>✅ SUCCESS:</strong> ${address}<br>
+                        <em>Status: ${result.status}</em><br>
+                        <strong>🎉 Clients can use this address!</strong>
+                    `;
+                } else {
+                    testDiv.className = 'test-item error';
+                    testDiv.innerHTML = `
+                        <strong>❌ FAILED:</strong> ${address}<br>
+                        <em>Error: ${result.error}</em>
+                    `;
+                }
+            }
+            
+            // Add recommendation
+            const recDiv = document.createElement('div');
+            recDiv.innerHTML = `
+                <h2>📱 For Client Devices:</h2>
+                <p><strong>Use the address marked with ✅ SUCCESS above.</strong></p>
+                <p>If multiple addresses work, prefer the <code>192.168.1.129:3000</code> address.</p>
+                <p><strong>Important:</strong> Make sure client devices are connected to the same Wi-Fi network!</p>
+            `;
+            resultsDiv.appendChild(recDiv);
+        }
+        
+        // Auto-test on load
+        window.onload = () => setTimeout(testConnections, 1000);
+    </script>
+</body>
+</html>
