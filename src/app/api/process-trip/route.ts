@@ -4,7 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 // Enhanced MCP Agent - Uses new schema with trip_screenshots table
 class EnhancedMCPAgent {
   
-  async processTrip(imagePath: string, screenshotType?: string): Promise<{
+  async processTrip(
+    imagePath: string, 
+    screenshotType?: string,
+    fileMetadata?: {
+      originalName: string;
+      fileHash: string;
+      perceptualHash: string;
+      fileSize: number;
+    }
+  ): Promise<{
     success: boolean;
     tripData?: TripData;
     screenshotData?: TripScreenshot;
@@ -24,7 +33,7 @@ class EnhancedMCPAgent {
       console.log('Using REAL OCR data:', tripData);
       
       // Step 3: Save to enhanced database schema
-      const screenshotData = await this.saveToEnhancedDatabase(tripData, imagePath, ocrResult);
+      const screenshotData = await this.saveToEnhancedDatabase(tripData, imagePath, ocrResult, fileMetadata);
       
       // Step 4: Generate insights from REAL data
       const analytics = this.generateRealInsights(tripData, ocrResult);
@@ -202,7 +211,13 @@ class EnhancedMCPAgent {
   private async saveToEnhancedDatabase(
     tripData: TripData, 
     imagePath: string, 
-    ocrResult: {text: string, imageType: string, numbers: string[]}
+    ocrResult: {text: string, imageType: string, numbers: string[]},
+    fileMetadata?: {
+      originalName: string;
+      fileHash: string;
+      perceptualHash: string;
+      fileSize: number;
+    }
   ): Promise<TripScreenshot> {
     try {
       // First, ensure we have a trip record to link to
@@ -266,25 +281,40 @@ class EnhancedMCPAgent {
         ocrResult.imageType === 'initial_offer' ? 'initial_offer' :
         ocrResult.imageType === 'final_receipt' ? 'final_total' : 'other';
       
+      const screenshotInsertData: any = {
+        trip_id: tripId,
+        screenshot_type: screenshotType,
+        image_path: imagePath,
+        ocr_data: { 
+          raw_text: ocrResult.text, 
+          detected_type: ocrResult.imageType,
+          extraction_quality: ocrResult.numbers.length > 2 ? 'HIGH' : 'MODERATE'
+        },
+        extracted_data: {
+          numbers: ocrResult.numbers,
+          trip_data: tripData,
+          processing_timestamp: new Date().toISOString()
+        },
+        is_processed: true,
+        processing_notes: `Successfully processed ${ocrResult.imageType} with ${ocrResult.numbers.length} extracted numbers`
+      };
+
+      // Add file metadata if provided (will be ignored if columns don't exist)
+      if (fileMetadata) {
+        screenshotInsertData.original_filename = fileMetadata.originalName;
+        screenshotInsertData.file_hash = fileMetadata.fileHash;
+        screenshotInsertData.perceptual_hash = fileMetadata.perceptualHash;
+        screenshotInsertData.file_size = fileMetadata.fileSize;
+        console.log('Adding file metadata to screenshot record:', {
+          filename: fileMetadata.originalName,
+          hash: fileMetadata.fileHash?.substring(0, 8) + '...',
+          size: fileMetadata.fileSize
+        });
+      }
+
       const { data: screenshot, error: screenshotError } = await supabaseAdmin
         .from('trip_screenshots')
-        .insert({
-          trip_id: tripId,
-          screenshot_type: screenshotType,
-          image_path: imagePath,
-          ocr_data: { 
-            raw_text: ocrResult.text, 
-            detected_type: ocrResult.imageType,
-            extraction_quality: ocrResult.numbers.length > 2 ? 'HIGH' : 'MODERATE'
-          },
-          extracted_data: {
-            numbers: ocrResult.numbers,
-            trip_data: tripData,
-            processing_timestamp: new Date().toISOString()
-          },
-          is_processed: true,
-          processing_notes: `Successfully processed ${ocrResult.imageType} with ${ocrResult.numbers.length} extracted numbers`
-        })
+        .insert(screenshotInsertData)
         .select()
         .single();
         
@@ -381,7 +411,7 @@ class EnhancedMCPAgent {
 
 export async function POST(request: NextRequest) {
   try {
-    const { imagePath, screenshotType } = await request.json();
+    const { imagePath, screenshotType, fileMetadata } = await request.json();
     
     console.log('Enhanced Route: Processing', screenshotType, 'image');
     
@@ -393,7 +423,7 @@ export async function POST(request: NextRequest) {
     }
 
     const agent = new EnhancedMCPAgent();
-    const result = await agent.processTrip(imagePath, screenshotType);
+    const result = await agent.processTrip(imagePath, screenshotType, fileMetadata);
 
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 500 });

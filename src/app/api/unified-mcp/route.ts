@@ -348,6 +348,204 @@ async function handleCombinedAnalysis(params: {
 
 // Helper functions
 
+function analyzeScreenshots(trips: any[]): Record<string, any> {
+  const screenshotTypes = { dashboard: 0, initial_offer: 0, final_total: 0, navigation: 0, other: 0 };
+  let totalScreenshots = 0;
+  let processedScreenshots = 0;
+
+  trips.forEach(trip => {
+    if (trip.trip_screenshots && Array.isArray(trip.trip_screenshots)) {
+      totalScreenshots += trip.trip_screenshots.length;
+      trip.trip_screenshots.forEach((screenshot: any) => {
+        screenshotTypes[screenshot.screenshot_type as keyof typeof screenshotTypes]++;
+        if (screenshot.is_processed) processedScreenshots++;
+      });
+    }
+  });
+
+  return {
+    total_screenshots: totalScreenshots,
+    processed_screenshots: processedScreenshots,
+    processing_rate: totalScreenshots > 0 ? (processedScreenshots / totalScreenshots) * 100 : 0,
+    types: screenshotTypes,
+    has_dashboard_readings: screenshotTypes.dashboard > 0,
+    has_trip_data: (screenshotTypes.initial_offer + screenshotTypes.final_total) > 0
+  };
+}
+
+function calculateEnhancedPerformanceScore(metrics: {
+  totalTrips: number;
+  totalEarnings: number;
+  totalDistance: number;
+  totalProfit: number;
+  avgMPG: number;
+  screenshotStats: Record<string, any>;
+}): number {
+  let score = calculateOverallPerformanceScore(metrics);
+
+  // Bonus points for good screenshot data
+  if (metrics.screenshotStats.processing_rate > 80) score += 5;
+  if (metrics.screenshotStats.has_dashboard_readings) score += 5;
+  if (metrics.screenshotStats.has_trip_data) score += 5;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+function analyzeEnhancedTimePatterns(trips: any[], timeframe: string): Record<string, any> {
+  // Use existing function but add screenshot-based insights
+  const baseAnalysis = analyzeTimePatterns(trips, timeframe);
+  
+  // Add screenshot timing analysis
+  const screenshotTiming = trips
+    .filter(trip => trip.trip_screenshots && trip.trip_screenshots.length > 0)
+    .map(trip => {
+      const latestScreenshot = trip.trip_screenshots.sort((a: any, b: any) => 
+        new Date(b.upload_timestamp).getTime() - new Date(a.upload_timestamp).getTime()
+      )[0];
+      return {
+        trip_date: new Date(trip.created_at),
+        screenshot_date: new Date(latestScreenshot.upload_timestamp),
+        types: trip.trip_screenshots.map((s: any) => s.screenshot_type)
+      };
+    });
+
+  return {
+    ...baseAnalysis,
+    screenshot_patterns: {
+      uploads_with_screenshots: screenshotTiming.length,
+      most_common_types: screenshotTiming.flatMap(s => s.types)
+        .reduce((acc: Record<string, number>, type) => {
+          acc[type] = (acc[type] || 0) + 1;
+          return acc;
+        }, {})
+    }
+  };
+}
+
+function analyzeEnhancedTipPerformance(trips: any[]): Record<string, any> {
+  // Use existing function as base
+  const baseAnalysis = analyzeTipPerformance(trips);
+  
+  // Add screenshot-based tip analysis
+  const tripsWithScreenshots = trips.filter(trip => 
+    trip.trip_screenshots && trip.trip_screenshots.some((s: any) => 
+      s.screenshot_type === 'initial_offer' || s.screenshot_type === 'final_total'
+    )
+  );
+
+  const tipVarianceData = tripsWithScreenshots.map(trip => {
+    const initialOffer = trip.trip_screenshots.find((s: any) => s.screenshot_type === 'initial_offer');
+    const finalTotal = trip.trip_screenshots.find((s: any) => s.screenshot_type === 'final_total');
+    
+    if (initialOffer && finalTotal && initialOffer.extracted_data && finalTotal.extracted_data) {
+      const initialTip = initialOffer.extracted_data.tip_amount || 0;
+      const finalTip = finalTotal.extracted_data.tip_amount || 0;
+      return { initial: initialTip, final: finalTip, variance: finalTip - initialTip };
+    }
+    return null;
+  }).filter(Boolean);
+
+  const avgVariance = tipVarianceData.length > 0 
+    ? tipVarianceData.reduce((sum, data) => sum + Math.abs(data!.variance), 0) / tipVarianceData.length
+    : 0;
+
+  return {
+    ...baseAnalysis,
+    screenshot_based_analysis: {
+      trips_with_comparison: tipVarianceData.length,
+      average_tip_variance: avgVariance,
+      accuracy_with_screenshots: avgVariance <= 1.0 ? 'high' : avgVariance <= 2.0 ? 'moderate' : 'low'
+    }
+  };
+}
+
+function analyzeEnhancedTrends(trips: any[], timeframe: string): Record<string, any> | null {
+  const baseTrends = analyzeTrends(trips, timeframe);
+  
+  if (!baseTrends) return null;
+
+  // Add screenshot trend analysis
+  const recentTrips = trips.slice(0, Math.floor(trips.length / 2));
+  const olderTrips = trips.slice(Math.floor(trips.length / 2));
+
+  const recentScreenshots = recentTrips.reduce((sum, trip) => 
+    sum + (trip.trip_screenshots?.length || 0), 0
+  );
+  const olderScreenshots = olderTrips.reduce((sum, trip) => 
+    sum + (trip.trip_screenshots?.length || 0), 0
+  );
+
+  const screenshotTrend = recentTrips.length > 0 && olderTrips.length > 0
+    ? (recentScreenshots / recentTrips.length) - (olderScreenshots / olderTrips.length)
+    : 0;
+
+  return {
+    ...baseTrends,
+    screenshot_trends: {
+      recent_avg_screenshots: recentTrips.length > 0 ? recentScreenshots / recentTrips.length : 0,
+      older_avg_screenshots: olderTrips.length > 0 ? olderScreenshots / olderTrips.length : 0,
+      trend_direction: screenshotTrend > 0.1 ? 'improving' : screenshotTrend < -0.1 ? 'declining' : 'stable'
+    }
+  };
+}
+
+function generateEnhancedRecommendations(context: {
+  performanceScore: number;
+  avgMPG: number;
+  totalProfit: number;
+  totalDistance: number;
+  tipAnalysis: any;
+  timeframe: string;
+  screenshotStats: Record<string, any>;
+}): string[] {
+  const recommendations = generateAIRecommendations(context);
+
+  // Add screenshot-specific recommendations
+  if (context.screenshotStats.processing_rate < 80) {
+    recommendations.push('Improve screenshot quality - some uploads failed to process correctly');
+  }
+
+  if (!context.screenshotStats.has_dashboard_readings) {
+    recommendations.push('Add dashboard odometer screenshots for better mileage tracking');
+  }
+
+  if (context.screenshotStats.types.initial_offer > context.screenshotStats.types.final_total) {
+    recommendations.push('Upload final receipt screenshots to complete trip analysis');
+  }
+
+  if (context.screenshotStats.total_screenshots === 0) {
+    recommendations.push('Start uploading trip screenshots to get personalized AI insights');
+  }
+
+  return recommendations;
+}
+
+function generateEnhancedKeyInsights(context: {
+  performanceScore: number;
+  avgMPG: number;
+  totalProfit: number;
+  totalTrips: number;
+  timeframe: string;
+  screenshotStats: Record<string, any>;
+}): string[] {
+  const insights = generateKeyInsights(context);
+
+  // Add enhanced insights based on screenshot data
+  if (context.screenshotStats.total_screenshots > 0) {
+    insights.push(`📸 ${context.screenshotStats.total_screenshots} screenshots processed with ${context.screenshotStats.processing_rate.toFixed(1)}% success rate`);
+  }
+
+  if (context.screenshotStats.has_dashboard_readings) {
+    insights.push('🚗 Dashboard readings available for accurate mileage tracking');
+  }
+
+  if (context.screenshotStats.types.initial_offer > 0 && context.screenshotStats.types.final_total > 0) {
+    insights.push('💰 Complete trip workflow detected - tip variance analysis available');
+  }
+
+  return insights;
+}
+
 function analyzeDailyPerformance(trips: any[]): Record<string, any> {
   if (trips.length === 0) {
     return {
@@ -655,63 +853,87 @@ async function handleAIInsights(params: {
   const { timeframe = 'all', dateRange, includeProjections = true, includeTrends = true } = params;
 
   try {
-    // Calculate date range based on timeframe
-    let startDate: Date | null = null;
-    let endDate: Date = new Date();
-
-    switch (timeframe) {
-      case 'today':
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'week':
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case 'month':
-        startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
-        break;
-      case 'custom':
-        if (dateRange) {
-          startDate = new Date(dateRange.start);
-          endDate = new Date(dateRange.end);
-        }
-        break;
-      case 'all':
-      default:
-        // No start date filter for 'all'
-        break;
-    }
-
-    // Build query with error handling
-    let query = supabaseAdmin
+    // Get both trips and trip_screenshots for comprehensive analysis
+    const { data: trips, error: tripsError } = await supabaseAdmin
       .from('trips')
-      .select('*')
+      .select(`
+        *,
+        trip_screenshots (
+          id,
+          screenshot_type,
+          image_path,
+          upload_timestamp,
+          is_processed,
+          ocr_data,
+          extracted_data
+        )
+      `)
       .order('created_at', { ascending: false });
 
-    // For now, let's skip date filtering to avoid JSONB query issues
-    // and handle filtering in JavaScript if needed
-    // TODO: Fix JSONB date filtering once data format is consistent
-    /*
-    if (startDate) {
-      query = query.gte('trip_data->trip_date', startDate.toISOString().split('T')[0]);
-    }
-    if (endDate && timeframe !== 'all') {
-      query = query.lte('trip_data->trip_date', endDate.toISOString().split('T')[0]);
-    }
-    */
+    if (tripsError) {
+      console.error('Error fetching trips:', tripsError);
+      // Fallback to basic trips query if enhanced schema fails
+      const { data: basicTrips, error: basicError } = await supabaseAdmin
+        .from('trips')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (basicError) {
+        throw new Error(`Failed to fetch trips: ${basicError.message}`);
+      }
+      
+      const fallbackInsights = await generateComprehensiveInsights(
+        basicTrips || [], 
+        timeframe, 
+        { includeProjections, includeTrends }
+      );
 
-    const { data: trips, error } = await query;
+      return NextResponse.json({
+        success: true,
+        timeframe,
+        trip_count: basicTrips?.length || 0,
+        ...fallbackInsights,
+        schema_version: 'basic',
+        last_updated: new Date().toISOString(),
+        honda_odyssey_optimized: true
+      });
+    }
 
-    if (error) {
-      throw new Error(`Failed to fetch trips: ${error.message}`);
+    // Process enhanced data
+    console.log(`Found ${trips?.length || 0} trips with enhanced schema`);
+
+    // Apply date filtering in JavaScript for now
+    let filteredTrips = trips || [];
+    if (timeframe !== 'all' && timeframe !== 'custom') {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (timeframe) {
+        case 'today':
+          startDate = new Date();
+          startDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          startDate = new Date();
+          startDate.setDate(startDate.getDate() - 7);
+          break;
+        case 'month':
+          startDate = new Date();
+          startDate.setMonth(startDate.getMonth() - 1);
+          break;
+        default:
+          startDate = new Date(0); // No filtering
+      }
+
+      filteredTrips = trips?.filter(trip => {
+        const tripDate = new Date(trip.created_at);
+        return tripDate >= startDate;
+      }) || [];
     }
 
     // Generate comprehensive AI insights
-    const insights = await generateComprehensiveInsights(
-      trips || [], 
+    const insights = await generateEnhancedInsights(
+      filteredTrips, 
       timeframe, 
       { includeProjections, includeTrends }
     );
@@ -720,16 +942,19 @@ async function handleAIInsights(params: {
       success: true,
       timeframe,
       date_range: {
-        start: startDate?.toISOString().split('T')[0] || 'all_time',
-        end: endDate.toISOString().split('T')[0]
+        start: timeframe === 'all' ? 'all_time' : 'calculated',
+        end: new Date().toISOString().split('T')[0]
       },
-      trip_count: trips?.length || 0,
-      insights,
+      trip_count: filteredTrips.length,
+      screenshot_count: filteredTrips.reduce((sum, trip) => sum + (trip.trip_screenshots?.length || 0), 0),
+      ...insights,
+      schema_version: 'enhanced',
       last_updated: new Date().toISOString(),
       honda_odyssey_optimized: true
     });
 
   } catch (error) {
+    console.error('AI insights error:', error);
     return NextResponse.json({
       success: false,
       error: error instanceof Error ? error.message : 'AI insights generation failed'
@@ -828,6 +1053,138 @@ async function generateComprehensiveInsights(
       totalProfit,
       totalTrips,
       timeframe
+    })
+  };
+}
+
+async function generateEnhancedInsights(
+  trips: any[], 
+  timeframe: string, 
+  options: { includeProjections: boolean; includeTrends: boolean }
+): Promise<Record<string, any>> {
+  if (trips.length === 0) {
+    return {
+      summary: {
+        message: 'No trips found - upload screenshots to see AI insights',
+        total_trips: 0,
+        total_earnings: 0,
+        total_distance: 0,
+        total_profit: 0,
+        performance_score: 0,
+        profit_margin: 0
+      },
+      honda_odyssey: {
+        actual_mpg: 19,
+        rated_mpg: 19,
+        efficiency_rating: 'No data available',
+        total_fuel_cost: 0,
+        fuel_savings: 'Upload trip data for analysis'
+      },
+      performance_breakdown: {
+        earnings_per_mile: 0,
+        profit_per_mile: 0,
+        average_trip_profit: 0,
+        fuel_cost_ratio: 0
+      },
+      key_insights: ['Upload trip screenshots to start getting AI insights'],
+      ai_recommendations: ['Take screenshots of your trip offers and final totals to begin analysis']
+    };
+  }
+
+  // Extract data from both trip_data and direct fields (enhanced schema support)
+  const extractValue = (trip: any, field: string, fallback: number = 0) => {
+    return (trip.trip_data?.[field] ?? trip[field] ?? fallback);
+  };
+
+  // Core metrics calculation with enhanced schema support
+  const totalTrips = trips.length;
+  const totalEarnings = trips.reduce((sum, trip) => sum + extractValue(trip, 'driver_earnings'), 0);
+  const totalDistance = trips.reduce((sum, trip) => sum + extractValue(trip, 'distance'), 0);
+  const totalFuelCost = trips.reduce((sum, trip) => sum + extractValue(trip, 'gas_cost'), 0);
+  const totalProfit = trips.reduce((sum, trip) => sum + extractValue(trip, 'profit'), 0);
+  const totalTips = trips.reduce((sum, trip) => sum + extractValue(trip, 'tip_amount'), 0);
+
+  // Enhanced screenshot analysis
+  const screenshotStats = analyzeScreenshots(trips);
+
+  // Honda Odyssey specific calculations
+  const avgMPG = totalFuelCost > 0 ? totalDistance / (totalFuelCost / 3.50) : 19;
+  const fuelEfficiencyRating = getFuelEfficiencyRating(totalDistance, totalFuelCost);
+
+  // Performance scoring with screenshot bonus
+  const performanceScore = calculateEnhancedPerformanceScore({
+    totalTrips,
+    totalEarnings,
+    totalDistance,
+    totalProfit,
+    avgMPG,
+    screenshotStats
+  });
+
+  // Enhanced time analysis
+  const timeAnalysis = analyzeEnhancedTimePatterns(trips, timeframe);
+
+  // Enhanced tip analysis
+  const tipAnalysis = analyzeEnhancedTipPerformance(trips);
+
+  // Projections
+  const projections = options.includeProjections ? generateProjections(trips, timeframe) : null;
+
+  // Trends with screenshot data
+  const trends = options.includeTrends ? analyzeEnhancedTrends(trips, timeframe) : null;
+
+  // AI-generated insights and recommendations
+  const aiRecommendations = generateEnhancedRecommendations({
+    performanceScore,
+    avgMPG,
+    totalProfit,
+    totalDistance,
+    tipAnalysis,
+    timeframe,
+    screenshotStats
+  });
+
+  return {
+    summary: {
+      timeframe,
+      total_trips: totalTrips,
+      total_earnings: totalEarnings,
+      total_distance: totalDistance,
+      total_profit: totalProfit,
+      performance_score: performanceScore,
+      profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
+    },
+    honda_odyssey: {
+      actual_mpg: avgMPG,
+      rated_mpg: 19,
+      efficiency_rating: fuelEfficiencyRating,
+      total_fuel_cost: totalFuelCost,
+      fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
+    },
+    performance_breakdown: {
+      earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
+      profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
+      average_trip_profit: totalTrips > 0 ? totalProfit / totalTrips : 0,
+      fuel_cost_ratio: totalEarnings > 0 ? (totalFuelCost / totalEarnings) : 0
+    },
+    time_analysis: timeAnalysis,
+    tip_analysis: {
+      accuracy_rate: tipAnalysis.accuracy_rate || 0,
+      total_tips: totalTips,
+      average_tip: totalTrips > 0 ? totalTips / totalTrips : 0,
+      best_tip_day: tipAnalysis.best_tip_day || 'Not enough data'
+    },
+    projections,
+    trends,
+    screenshot_analysis: screenshotStats,
+    ai_recommendations: aiRecommendations,
+    key_insights: generateEnhancedKeyInsights({
+      performanceScore,
+      avgMPG,
+      totalProfit,
+      totalTrips,
+      timeframe,
+      screenshotStats
     })
   };
 }

@@ -1,3 +1,4 @@
+import { checkForDuplicate, generateFileHash, generatePerceptualHash } from "@/lib/duplicate-detection";
 import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -14,9 +15,43 @@ export async function POST(request: NextRequest) {
     }
 
     const uploadedFiles = [];
+    const blockedDuplicates = [];
 
     for (const file of files) {
       const bytes = await file.arrayBuffer();
+      const fileBuffer = Buffer.from(bytes);
+
+      // Check for duplicates BEFORE uploading
+      console.log(`Checking for duplicates: ${file.name} (${fileBuffer.length} bytes)`);
+      const duplicateCheck = await checkForDuplicate(fileBuffer, file.name, fileBuffer.length);
+
+      if (duplicateCheck.isDuplicate) {
+        console.log(`Duplicate detected: ${file.name} - ${duplicateCheck.reason}`);
+        
+        // Log the blocked duplicate
+        try {
+          const fileHash = generateFileHash(fileBuffer);
+          const perceptualHash = generatePerceptualHash(fileBuffer);
+          
+          await supabaseAdmin.from('duplicate_blocks').insert({
+            file_hash: fileHash,
+            perceptual_hash: perceptualHash,
+            original_filename: file.name,
+            file_size: fileBuffer.length,
+            existing_screenshot_id: duplicateCheck.existingScreenshot?.id,
+            block_reason: duplicateCheck.reason
+          });
+        } catch (logError) {
+          console.error('Failed to log duplicate block:', logError);
+        }
+
+        blockedDuplicates.push({
+          originalName: file.name,
+          reason: duplicateCheck.reason,
+          existingUpload: duplicateCheck.existingScreenshot?.upload_timestamp
+        });
+        continue; // Skip this file
+      }
 
       // Generate unique filename with timestamp
       const timestamp = Date.now();
@@ -24,6 +59,8 @@ export async function POST(request: NextRequest) {
         /[^a-zA-Z0-9.-]/g,
         "_"
       )}`;
+
+      console.log(`Uploading new file: ${file.name} -> ${filename}`);
 
       // Upload to Supabase Storage
       const {
@@ -47,6 +84,10 @@ export async function POST(request: NextRequest) {
         data: { publicUrl },
       } = supabaseAdmin.storage.from("trip-uploads").getPublicUrl(filename);
 
+      // Store file metadata for future duplicate detection
+      const fileHash = generateFileHash(fileBuffer);
+      const perceptualHash = generatePerceptualHash(fileBuffer);
+
       uploadedFiles.push({
         originalName: file.name,
         filename: filename,
@@ -54,6 +95,9 @@ export async function POST(request: NextRequest) {
         mimetype: file.type,
         path: publicUrl,
         supabasePath: uploadData.path,
+        fileHash,
+        perceptualHash,
+        fileSize: fileBuffer.length
       });
     }
 
@@ -73,6 +117,12 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({
               imagePath: uploadedFile.path,
               screenshotType: "single_trip",
+              fileMetadata: {
+                originalName: uploadedFile.originalName,
+                fileHash: uploadedFile.fileHash,
+                perceptualHash: uploadedFile.perceptualHash,
+                fileSize: uploadedFile.fileSize
+              }
             }),
           }
         );
@@ -110,22 +160,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Prepare response with duplicate information
+    const responseMessage = [];
+    if (uploadedFiles.length > 0) {
+      responseMessage.push(`Successfully uploaded ${uploadedFiles.length} new file(s)`);
+    }
+    if (blockedDuplicates.length > 0) {
+      responseMessage.push(`Blocked ${blockedDuplicates.length} duplicate(s)`);
+    }
+    if (processedResults.filter(r => r.success).length > 0) {
+      responseMessage.push(`Processed ${processedResults.filter(r => r.success).length} trip(s)`);
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Successfully uploaded ${
-        uploadedFiles.length
-      } file(s) to cloud storage and processed ${
-        processedResults.filter((r) => r.success).length
-      } trips`,
+      message: responseMessage.join(', '),
       files: uploadedFiles,
+      blockedDuplicates,
       processedTrips: processedResults,
+      stats: {
+        uploaded: uploadedFiles.length,
+        duplicatesBlocked: blockedDuplicates.length,
+        processed: processedResults.filter(r => r.success).length
+      }
     });
   } catch (error) {
-    console.error("Cloud upload error:", error);
+    console.error("Upload error:", error);
     return NextResponse.json(
       {
         success: false,
-        message: `Cloud upload failed: ${
+        message: `Upload failed: ${
           error instanceof Error ? error.message : "Unknown error"
         }`,
       },

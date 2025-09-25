@@ -1,0 +1,10 @@
+{
+  "name": "Honda Odyssey Dash Analytics",
+  "description": "Production startup script for the rideshare analytics app",
+  "version": "1.0.0",
+  "main": "start-production.bat",
+  "scripts": {
+    "start-prod": "start-production.bat",
+    "auto-start": "npm run build && start-production.bat"
+  }
+}

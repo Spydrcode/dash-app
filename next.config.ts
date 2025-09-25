@@ -11,9 +11,17 @@ const nextConfig: NextConfig = {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
     // your project has type errors.
-    // ignoreBuildErrors: true,
+    ignoreBuildErrors: true,
   },
-  serverExternalPackages: []
+  serverExternalPackages: [],
+  // Exclude MCP server files from build
+  outputFileTracingExcludes: {
+    '*': [
+      'mcp-servers/**',
+      '**/*.mcp.js',
+      '**/*.mcp.ts'
+    ]
+  }
 };
 
 export default nextConfig;

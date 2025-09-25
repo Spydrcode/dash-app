@@ -98,6 +98,8 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
     setError(null);
     
     try {
+      // Add a cache buster to ensure fresh data
+      const cacheBuster = Date.now();
       const response = await fetch('/api/unified-mcp', {
         method: 'POST',
         headers: {
@@ -107,7 +109,8 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
           action: 'ai_insights',
           timeframe: selectedTimeframe,
           includeProjections: true,
-          includeTrends: true
+          includeTrends: true,
+          cacheBuster // Force fresh data
         }),
       });
 
@@ -125,8 +128,23 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
     }
   };
 
+  const handleRefresh = () => {
+    fetchInsights(timeframe);
+  };
+
   useEffect(() => {
     fetchInsights(timeframe);
+  }, [timeframe]);
+
+  // Listen for custom refresh events (from uploads, etc.)
+  useEffect(() => {
+    const handleRefreshEvent = () => {
+      console.log('AI Insights refresh event received');
+      fetchInsights(timeframe);
+    };
+
+    window.addEventListener('dashboardRefresh', handleRefreshEvent);
+    return () => window.removeEventListener('dashboardRefresh', handleRefreshEvent);
   }, [timeframe]);
 
   const handleTimeframeChange = (newTimeframe: string) => {
@@ -191,7 +209,15 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
             <p className="text-gray-600 mt-2">Real-time trip analytics and performance insights</p>
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="px-3 py-2 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 disabled:opacity-50"
+              title="Refresh insights with latest data"
+            >
+              {loading ? '🔄' : '↻'}
+            </button>
             {['day', 'week', 'month', 'year'].map((period) => (
               <button
                 key={period}

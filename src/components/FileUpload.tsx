@@ -202,6 +202,20 @@ export default function FileUpload({
       console.log('Calling onUploadComplete with:', updatedFiles);
       onUploadComplete?.(updatedFiles);
 
+      // Trigger dashboard refresh event for AI insights
+      console.log('Triggering dashboard refresh after upload');
+      window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      
+      // Show success notification
+      window.dispatchEvent(new CustomEvent('addNotification', {
+        detail: {
+          type: 'success',
+          title: 'Upload Successful!',
+          message: `${updatedFiles.length} screenshots uploaded and processing started. AI insights will update automatically.`,
+          autoClose: true
+        }
+      }));
+
     } catch (error) {
       console.error('Upload failed:', error);
       

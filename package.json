@@ -11,7 +11,9 @@
     "lint": "eslint",
     "mcp:install": "cd mcp-servers && npm run install:all",
     "mcp:start": "cd mcp-servers && npm run start:all",
-    "ollama:setup": "ollama pull llama2:13b-instruct && ollama pull mistral:7b-instruct"
+    "ollama:setup": "ollama pull llama2:13b-instruct && ollama pull mistral:7b-instruct",
+    "deploy:office": "node deploy-helper.js && deploy-with-ngrok.bat",
+    "start:tunnel": "concurrently \"npm start\" \"ngrok http 3000\""
   },
   "dependencies": {
     "@headlessui/react": "^2.2.8",
@@ -21,6 +23,7 @@
     "chart.js": "^4.4.1",
     "date-fns": "^3.3.1",
     "dotenv": "^17.2.2",
+    "form-data": "^4.0.4",
     "next": "15.5.4",
     "node-fetch": "^3.3.2",
     "react": "19.1.0",
