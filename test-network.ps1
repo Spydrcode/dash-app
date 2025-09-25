@@ -27,7 +27,7 @@ foreach ($testIP in $testAddresses) {
         # Use .NET WebClient for a quick connectivity test
         $webClient = New-Object System.Net.WebClient
         $webClient.Timeout = 5000
-        $result = $webClient.DownloadString("http://$testIP:3000")
+        $null = $webClient.DownloadString("http://$testIP:3000")
         Write-Host "  ✓ ACCESSIBLE" -ForegroundColor Green
         Write-Host "  → Clients should use: http://$testIP:3000" -ForegroundColor Magenta
         $webClient.Dispose()

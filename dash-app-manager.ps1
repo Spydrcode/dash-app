@@ -25,8 +25,8 @@ function Start-App {
     if (Test-Path $PidFile) {
         $processId = Get-Content $PidFile
         try {
-            $process = Get-Process -Id $processId -ErrorAction Stop
-            Write-AppLog "App is already running (PID: $processId, Name: $($process.ProcessName))"
+            $runningProcess = Get-Process -Id $processId -ErrorAction Stop
+            Write-AppLog "App is already running (PID: $processId, Name: $($runningProcess.ProcessName))"
             return
         } catch {
             # Process not running, remove stale PID file
@@ -67,10 +67,11 @@ function Stop-App {
     if (Test-Path $PidFile) {
         $processId = Get-Content $PidFile
         try {
-            $process = Get-Process -Id $processId -ErrorAction Stop
+            $targetProcess = Get-Process -Id $processId -ErrorAction Stop
+            $processName = $targetProcess.ProcessName
             Stop-Process -Id $processId -Force
             Remove-Item $PidFile -Force
-            Write-AppLog "App stopped (PID: $processId, Name: $($process.ProcessName))"
+            Write-AppLog "App stopped (PID: $processId, Name: $processName)"
         } catch {
             Write-AppLog "App process not found, cleaning up PID file"
             Remove-Item $PidFile -Force
@@ -81,16 +82,18 @@ function Stop-App {
     
     # Also kill any remaining node processes on port 3000
     try {
-        $nodeProcesses = netstat -ano | Select-String ":3000" | ForEach-Object {
-            ($_ -split "\s+")[-1]
+        $netstatOutput = & netstat -ano
+        $port3000Lines = $netstatOutput | Select-String ":3000"
+        $nodeProcesses = $port3000Lines | ForEach-Object {
+            ($_.Line -split "\s+")[-1]
         } | Sort-Object -Unique
         
-        foreach ($nodePid in $nodeProcesses) {
+        foreach ($nodeProcessId in $nodeProcesses) {
             try {
-                $nodeProcess = Get-Process -Id $nodePid -ErrorAction Stop
+                $nodeProcess = Get-Process -Id $nodeProcessId -ErrorAction Stop
                 if ($nodeProcess.ProcessName -eq "node") {
-                    Stop-Process -Id $nodePid -Force
-                    Write-AppLog "Stopped node process (PID: $nodePid)"
+                    Stop-Process -Id $nodeProcessId -Force
+                    Write-AppLog "Stopped node process (PID: $nodeProcessId)"
                 }
             } catch { }
         }
@@ -101,13 +104,13 @@ function Get-AppStatus {
     if (Test-Path $PidFile) {
         $processId = Get-Content $PidFile
         try {
-            $process = Get-Process -Id $processId -ErrorAction Stop
-            Write-Host "Status: RUNNING (PID: $processId, Name: $($process.ProcessName))" -ForegroundColor Green
+            $runningProcess = Get-Process -Id $processId -ErrorAction Stop
+            Write-Host "Status: RUNNING (PID: $processId, Name: $($runningProcess.ProcessName))" -ForegroundColor Green
             
             # Check if port 3000 is responding
             try {
-                $response = Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 5 -UseBasicParsing
-                Write-Host "Web server: ACCESSIBLE ($($response.StatusCode))" -ForegroundColor Green
+                $webResponse = Invoke-WebRequest -Uri "http://localhost:3000" -TimeoutSec 5 -UseBasicParsing
+                Write-Host "Web server: ACCESSIBLE ($($webResponse.StatusCode))" -ForegroundColor Green
             } catch {
                 Write-Host "Web server: NOT RESPONDING" -ForegroundColor Yellow
             }

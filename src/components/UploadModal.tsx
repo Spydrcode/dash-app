@@ -7,11 +7,11 @@ import FileUpload from './FileUpload';
 
 interface UploadModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   driverId: string;
 }
 
-export default function UploadModal({ isOpen, onClose, driverId }: UploadModalProps) {
+export default function UploadModal({ isOpen, onCloseAction, driverId }: UploadModalProps) {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const [uploadedCount, setUploadedCount] = useState(0);
 
@@ -28,7 +28,7 @@ export default function UploadModal({ isOpen, onClose, driverId }: UploadModalPr
   const handleClose = () => {
     setUploadStatus('idle');
     setUploadedCount(0);
-    onClose();
+    onCloseAction();
   };
 
   return (

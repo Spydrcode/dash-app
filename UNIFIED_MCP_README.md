@@ -214,7 +214,8 @@ const response = await fetch("/api/process-trip", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
-    imagePath: "/uploads/trip-screenshot.jpg",
+    imagePath:
+      "https://your-supabase-url/storage/v1/object/public/trip-uploads/your-file.jpg",
     screenshotType: "initial_offer",
   }),
 });
@@ -246,7 +247,8 @@ const analysis = await response.json();
 const initialResponse = await fetch("/api/process-trip", {
   method: "POST",
   body: JSON.stringify({
-    imagePath: "/initial-offer.jpg",
+    imagePath:
+      "https://your-supabase-url/storage/v1/object/public/trip-uploads/initial-offer.jpg",
     screenshotType: "initial_offer",
   }),
 });
@@ -257,7 +259,13 @@ const finalResponse = await fetch("/api/unified-mcp", {
   body: JSON.stringify({
     action: "multi_screenshot",
     tripId: tripId,
-    screenshots: [{ type: "final_total", filePath: "/final-total.jpg" }],
+    screenshots: [
+      {
+        type: "final_total",
+        filePath:
+          "https://your-supabase-url/storage/v1/object/public/trip-uploads/final-total.jpg",
+      },
+    ],
   }),
 });
 ```
@@ -356,7 +364,7 @@ ollama pull deepseek-r1:latest
 # Test unified system
 curl -X POST http://localhost:3000/api/process-trip \
   -H "Content-Type: application/json" \
-  -d '{"imagePath":"/test/screenshot.jpg","screenshotType":"initial_offer"}'
+  -d '{"imagePath":"https://your-supabase-url/storage/v1/object/public/trip-uploads/screenshot.jpg","screenshotType":"initial_offer"}'
 
 # Test reanalysis
 curl -X POST http://localhost:3000/api/unified-mcp \

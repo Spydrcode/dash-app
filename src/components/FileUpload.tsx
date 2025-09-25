@@ -166,19 +166,31 @@ export default function FileUpload({
 
       const uploadResult = await response.json();
       console.log('Upload API result:', uploadResult);
+      console.log('uploadResult.files:', uploadResult.files);
+      console.log('uploadResult.files length:', uploadResult.files?.length);
 
       // Create updated files with paths from the upload result
       const updatedFiles = files.map((f, index) => {
         if (f.status === 'uploading') {
           const uploadedFile = uploadResult.files && uploadResult.files[index];
-          const filePath = uploadedFile?.path || `/uploads/${f.file.name}`;
-          console.log(`Setting path for file ${f.file.name}: ${filePath}`);
-          return { 
-            ...f, 
-            status: 'completed' as const, 
-            progress: 100,
-            path: filePath
-          };
+          console.log(`Processing file ${index} (${f.file.name}):`, uploadedFile);
+          if (uploadedFile?.path) {
+            console.log(`Setting Supabase path for file ${f.file.name}: ${uploadedFile.path}`);
+            return { 
+              ...f, 
+              status: 'completed' as const, 
+              progress: 100,
+              path: uploadedFile.path
+            };
+          } else {
+            console.error(`No Supabase path available for file ${f.file.name}`, uploadedFile);
+            return {
+              ...f,
+              status: 'error' as const,
+              progress: 0,
+              path: undefined
+            };
+          }
         }
         return f;
       });

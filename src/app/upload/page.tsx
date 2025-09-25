@@ -14,6 +14,7 @@ interface UploadedFile {
   progress: number;
   error?: string;
   path?: string;
+  imageType?: 'dashboard' | 'initial_offer' | 'final_receipt' | 'navigation' | 'unknown'; // Add image type
 }
 
 export default function UploadPage() {
@@ -42,8 +43,14 @@ export default function UploadPage() {
     } else {
       console.log('No completed file with path found');
       console.log('Available files:', files.map(f => ({ name: f.file.name, status: f.status, path: f.path })));
-      // Set a default path for testing
-      setSelectedFileForProcessing('/uploads/sample-trip.jpg');
+      // Try to use the first uploaded file if available
+      const firstFile = files.find(f => f.status === 'completed');
+      if (firstFile) {
+        console.log('Using first completed file for processing');
+        // This will be set later when user clicks "View AI Results"
+      } else {
+        console.log('No completed files found - upload may have failed');
+      }
     }
   };
 
@@ -99,29 +106,67 @@ export default function UploadPage() {
               </button>
               {uploadedFiles.length > 0 && (
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     console.log('View AI Results clicked!');
-                    console.log('uploadedFiles:', uploadedFiles.map(f => ({ 
+                    console.log('uploadedFiles count:', uploadedFiles.length);
+                    console.log('uploadedFiles full objects:', uploadedFiles);
+                    console.log('uploadedFiles detailed:', uploadedFiles.map(f => ({ 
                       name: f.file.name, 
                       status: f.status, 
-                      path: f.path 
+                      path: f.path,
+                      pathType: typeof f.path,
+                      pathLength: f.path ? f.path.length : 'no path',
+                      hasPath: !!f.path,
+                      fullObject: f
                     })));
                     console.log('selectedFileForProcessing before:', selectedFileForProcessing);
                     
-                    // Ensure we have a file selected for processing
-                    if (!selectedFileForProcessing) {
-                      const firstCompleted = uploadedFiles.find(f => f.status === 'completed' && f.path);
-                      if (firstCompleted && firstCompleted.path) {
-                        console.log('Setting selectedFileForProcessing to:', firstCompleted.path);
-                        setSelectedFileForProcessing(firstCompleted.path);
-                      } else {
-                        console.log('No completed file found, using fallback');
-                        setSelectedFileForProcessing('/uploads/sample-trip.jpg');
-                      }
-                    }
+                    // Check if we have any uploaded files with paths (regardless of status)
+                    const fileWithPath = uploadedFiles.find(f => {
+                      console.log(`Checking file ${f.file.name}: path="${f.path}", hasPath=${!!f.path}`);
+                      return f.path && f.path.trim().length > 0;
+                    });
                     
-                    console.log('Setting showingResults to true');
-                    setShowingResults(true);
+                    console.log('fileWithPath found:', fileWithPath);
+                    
+                    // If we have files with paths, use them
+                    if (fileWithPath && fileWithPath.path) {
+                      if (!selectedFileForProcessing) {
+                        console.log('Setting selectedFileForProcessing to:', fileWithPath.path);
+                        setSelectedFileForProcessing(fileWithPath.path);
+                      }
+                      console.log('Setting showingResults to true');
+                      setShowingResults(true);
+                    } else {
+                      console.log('No files with paths found, trying database check...');
+                      // If no completed files, check if we have any trips in the database
+                      try {
+                        const response = await fetch('/api/unified-mcp', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'ai_insights',
+                            timeframe: 'all'
+                          })
+                        });
+                        
+                        if (response.ok) {
+                          const data = await response.json();
+                          console.log('Database check response:', data);
+                          if (data.summary && data.summary.total_trips > 0) {
+                            console.log('Found processed trips in database, showing AI results');
+                            setShowingResults(true);
+                            return;
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error checking for processed trips:', error);
+                      }
+                      
+                      console.log('No files or processed trips found - redirecting to dashboard');
+                      // As a fallback, redirect to main dashboard which has AI insights
+                      window.location.href = '/';
+                    }
                   }}
                   className="btn-primary bg-purple-600 hover:bg-purple-700"
                 >

@@ -57,12 +57,68 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Process each uploaded file through the trip processing pipeline
+    const processedResults = [];
+    for (const uploadedFile of uploadedFiles) {
+      try {
+        console.log(`Processing uploaded file: ${uploadedFile.filename}`);
+
+        // Call the process-trip API to extract trip data
+        const processResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_SITE_URL ||
+            "http://localhost:3000"}/api/process-trip`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              imagePath: uploadedFile.path,
+              screenshotType: "single_trip",
+            }),
+          }
+        );
+
+        if (processResponse.ok) {
+          const processResult = await processResponse.json();
+          console.log(
+            `Successfully processed ${uploadedFile.filename}:`,
+            processResult
+          );
+          processedResults.push({
+            file: uploadedFile.filename,
+            success: true,
+            tripId: processResult.tripId,
+          });
+        } else {
+          console.error(
+            `Failed to process ${uploadedFile.filename}:`,
+            processResponse.statusText
+          );
+          processedResults.push({
+            file: uploadedFile.filename,
+            success: false,
+            error: `Processing failed: ${processResponse.statusText}`,
+          });
+        }
+      } catch (error) {
+        console.error(`Error processing ${uploadedFile.filename}:`, error);
+        processedResults.push({
+          file: uploadedFile.filename,
+          success: false,
+          error:
+            error instanceof Error ? error.message : "Unknown processing error",
+        });
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Successfully uploaded ${
         uploadedFiles.length
-      } file(s) to cloud storage`,
+      } file(s) to cloud storage and processed ${
+        processedResults.filter((r) => r.success).length
+      } trips`,
       files: uploadedFiles,
+      processedTrips: processedResults,
     });
   } catch (error) {
     console.error("Cloud upload error:", error);

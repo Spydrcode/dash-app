@@ -30,6 +30,14 @@ export interface TripData {
   profit?: number;
   vehicle_model?: string;
   vehicle_mpg?: number;
+  // Additional fields for multi-image processing
+  tip_amount?: number;
+  odometer_reading?: number;
+  image_type?: string;
+  estimated?: boolean;
+  raw_ocr_numbers?: string[];
+  raw_ocr_text?: string;
+  notes?: string;
 }
 
 export interface AIInsights {
@@ -79,4 +87,45 @@ export interface TripRecord {
   total_distance?: number;
   gas_cost?: number;
   created_at?: string;
+  // Enhanced schema fields
+  initial_estimate?: number;
+  final_total?: number;
+  tip_variance?: number;
+  tip_accuracy?: string;
+  screenshot_count?: number;
+  has_initial_screenshot?: boolean;
+  has_final_screenshot?: boolean;
+  trip_status?: string;
+}
+
+// New interface for trip_screenshots table
+export interface TripScreenshot {
+  id?: number;
+  trip_id: number;
+  screenshot_type:
+    | "initial_offer"
+    | "final_total"
+    | "navigation"
+    | "dashboard"
+    | "other";
+  image_path: string;
+  upload_timestamp?: string;
+  ocr_data?: any; // Raw OCR text extracted from image
+  extracted_data?: any; // Structured data extracted from image
+  is_processed?: boolean;
+  processing_notes?: string;
+}
+
+// New interface for reanalysis sessions
+export interface ReanalysisSession {
+  id?: number;
+  session_id?: string;
+  driver_id: string;
+  analysis_type: "daily" | "weekly" | "comparison" | "custom";
+  date_range_start?: string;
+  date_range_end?: string;
+  trip_ids?: number[];
+  results: any;
+  created_at?: string;
+  execution_time_ms?: number;
 }
