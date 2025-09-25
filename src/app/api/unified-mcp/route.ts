@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
       case 'combined_analysis':
         return await handleCombinedAnalysis(params);
       
+      case 'ai_insights':
+        return await handleAIInsights(params);
+      
       default:
         return NextResponse.json({
           success: false,
@@ -600,6 +603,439 @@ function compareHondaOdysseyPerformance(dayAnalysis: Record<string, any>): Recor
     performance_vs_rated: avgEfficiency >= 19 ? 'above_rated' : 'below_rated',
     efficiency_score: Math.min(100, (avgEfficiency / 19) * 100)
   };
+}
+
+async function handleAIInsights(params: {
+  timeframe?: 'all' | 'today' | 'week' | 'month' | 'custom';
+  dateRange?: { start: string; end: string };
+  includeProjections?: boolean;
+  includeTrends?: boolean;
+}): Promise<NextResponse> {
+  const { timeframe = 'all', dateRange, includeProjections = true, includeTrends = true } = params;
+
+  try {
+    // Calculate date range based on timeframe
+    let startDate: Date | null = null;
+    let endDate: Date = new Date();
+
+    switch (timeframe) {
+      case 'today':
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'custom':
+        if (dateRange) {
+          startDate = new Date(dateRange.start);
+          endDate = new Date(dateRange.end);
+        }
+        break;
+      case 'all':
+      default:
+        // No start date filter for 'all'
+        break;
+    }
+
+    // Build query
+    let query = supabaseAdmin
+      .from('trips')
+      .select('*')
+      .order('trip_date', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('trip_date', startDate.toISOString().split('T')[0]);
+    }
+    if (endDate && timeframe !== 'all') {
+      query = query.lte('trip_date', endDate.toISOString().split('T')[0]);
+    }
+
+    const { data: trips, error } = await query;
+
+    if (error) {
+      throw new Error(`Failed to fetch trips: ${error.message}`);
+    }
+
+    // Generate comprehensive AI insights
+    const insights = await generateComprehensiveInsights(
+      trips || [], 
+      timeframe, 
+      { includeProjections, includeTrends }
+    );
+
+    return NextResponse.json({
+      success: true,
+      timeframe,
+      date_range: {
+        start: startDate?.toISOString().split('T')[0] || 'all_time',
+        end: endDate.toISOString().split('T')[0]
+      },
+      trip_count: trips?.length || 0,
+      insights,
+      last_updated: new Date().toISOString(),
+      honda_odyssey_optimized: true
+    });
+
+  } catch (error) {
+    return NextResponse.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'AI insights generation failed'
+    }, { status: 500 });
+  }
+}
+
+async function generateComprehensiveInsights(
+  trips: any[], 
+  timeframe: string, 
+  options: { includeProjections: boolean; includeTrends: boolean }
+): Promise<Record<string, any>> {
+  if (trips.length === 0) {
+    return {
+      summary: {
+        message: 'No trips found for the selected timeframe',
+        total_trips: 0,
+        performance_score: 0
+      }
+    };
+  }
+
+  // Core metrics calculation
+  const totalTrips = trips.length;
+  const totalEarnings = trips.reduce((sum, trip) => sum + (trip.driver_earnings || 0), 0);
+  const totalDistance = trips.reduce((sum, trip) => sum + (trip.distance || 0), 0);
+  const totalFuelCost = trips.reduce((sum, trip) => sum + (trip.gas_cost || 0), 0);
+  const totalProfit = trips.reduce((sum, trip) => sum + (trip.profit || 0), 0);
+
+  // Honda Odyssey specific calculations
+  const avgMPG = totalFuelCost > 0 ? totalDistance / (totalFuelCost / 3.50) : 19;
+  const fuelEfficiencyRating = getFuelEfficiencyRating(totalDistance, totalFuelCost);
+
+  // Performance scoring
+  const performanceScore = calculateOverallPerformanceScore({
+    totalTrips,
+    totalEarnings,
+    totalDistance,
+    totalProfit,
+    avgMPG
+  });
+
+  // Time-based analysis
+  const timeAnalysis = analyzeTimePatterns(trips, timeframe);
+
+  // Tip analysis (if available)
+  const tipAnalysis = analyzeTipPerformance(trips);
+
+  // Projections
+  const projections = options.includeProjections ? generateProjections(trips, timeframe) : null;
+
+  // Trends
+  const trends = options.includeTrends ? analyzeTrends(trips, timeframe) : null;
+
+  // AI-generated insights and recommendations
+  const aiRecommendations = generateAIRecommendations({
+    performanceScore,
+    avgMPG,
+    totalProfit,
+    totalDistance,
+    tipAnalysis,
+    timeframe
+  });
+
+  return {
+    summary: {
+      timeframe,
+      total_trips: totalTrips,
+      total_earnings: totalEarnings,
+      total_distance: totalDistance,
+      total_profit: totalProfit,
+      performance_score: performanceScore,
+      profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
+    },
+    honda_odyssey: {
+      actual_mpg: avgMPG,
+      rated_mpg: 19,
+      efficiency_rating: fuelEfficiencyRating,
+      total_fuel_cost: totalFuelCost,
+      fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
+    },
+    performance_breakdown: {
+      earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
+      profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
+      average_trip_profit: totalProfit / totalTrips,
+      fuel_cost_ratio: totalEarnings > 0 ? (totalFuelCost / totalEarnings) * 100 : 0
+    },
+    time_analysis: timeAnalysis,
+    tip_analysis: tipAnalysis,
+    projections,
+    trends,
+    ai_recommendations: aiRecommendations,
+    key_insights: generateKeyInsights({
+      performanceScore,
+      avgMPG,
+      totalProfit,
+      totalTrips,
+      timeframe
+    })
+  };
+}
+
+function calculateOverallPerformanceScore(metrics: {
+  totalTrips: number;
+  totalEarnings: number;
+  totalDistance: number;
+  totalProfit: number;
+  avgMPG: number;
+}): number {
+  let score = 0;
+
+  // Trip volume scoring (0-25 points)
+  if (metrics.totalTrips >= 50) score += 25;
+  else if (metrics.totalTrips >= 20) score += 20;
+  else if (metrics.totalTrips >= 10) score += 15;
+  else if (metrics.totalTrips >= 5) score += 10;
+  else score += 5;
+
+  // Profit margin scoring (0-25 points)
+  const profitMargin = metrics.totalEarnings > 0 ? (metrics.totalProfit / metrics.totalEarnings) * 100 : 0;
+  if (profitMargin >= 60) score += 25;
+  else if (profitMargin >= 50) score += 20;
+  else if (profitMargin >= 40) score += 15;
+  else if (profitMargin >= 30) score += 10;
+  else score += 5;
+
+  // Honda Odyssey fuel efficiency scoring (0-25 points)
+  if (metrics.avgMPG >= 19) score += 25;
+  else if (metrics.avgMPG >= 17) score += 20;
+  else if (metrics.avgMPG >= 15) score += 15;
+  else if (metrics.avgMPG >= 13) score += 10;
+  else score += 5;
+
+  // Earnings consistency scoring (0-25 points)
+  const earningsPerTrip = metrics.totalEarnings / metrics.totalTrips;
+  if (earningsPerTrip >= 25) score += 25;
+  else if (earningsPerTrip >= 20) score += 20;
+  else if (earningsPerTrip >= 15) score += 15;
+  else if (earningsPerTrip >= 10) score += 10;
+  else score += 5;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+function analyzeTimePatterns(trips: any[], timeframe: string): Record<string, any> {
+  const dayGroups: Record<string, any[]> = {
+    Sunday: [], Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: []
+  };
+
+  const hourGroups: Record<string, any[]> = {};
+  for (let i = 0; i < 24; i++) {
+    hourGroups[i.toString()] = [];
+  }
+
+  trips.forEach(trip => {
+    const tripDate = new Date(trip.trip_date);
+    const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][tripDate.getDay()];
+    dayGroups[dayName].push(trip);
+
+    if (trip.trip_time) {
+      const hour = parseInt(trip.trip_time.split(':')[0]) || 12;
+      hourGroups[hour.toString()].push(trip);
+    }
+  });
+
+  // Find best performing day and hour
+  const bestDay = Object.entries(dayGroups)
+    .map(([day, dayTrips]) => ({
+      day,
+      profit: dayTrips.reduce((sum, trip) => sum + (trip.profit || 0), 0),
+      trips: dayTrips.length
+    }))
+    .sort((a, b) => b.profit - a.profit)[0];
+
+  const bestHour = Object.entries(hourGroups)
+    .map(([hour, hourTrips]) => ({
+      hour,
+      profit: hourTrips.reduce((sum, trip) => sum + (trip.profit || 0), 0),
+      trips: hourTrips.length
+    }))
+    .filter(h => h.trips > 0)
+    .sort((a, b) => b.profit - a.profit)[0];
+
+  return {
+    best_day: bestDay,
+    best_hour: bestHour,
+    day_breakdown: dayGroups,
+    recommendations: [
+      bestDay ? `${bestDay.day} is your most profitable day` : 'Need more data for day analysis',
+      bestHour ? `${bestHour.hour}:00 is your most profitable hour` : 'Need more data for time analysis'
+    ]
+  };
+}
+
+function analyzeTipPerformance(trips: any[]): Record<string, any> {
+  const tripsWithTips = trips.filter(trip => 
+    trip.initial_estimated_tip !== null && trip.actual_final_tip !== null
+  );
+
+  if (tripsWithTips.length === 0) {
+    return {
+      available: false,
+      message: 'No tip variance data available'
+    };
+  }
+
+  const totalVariance = tripsWithTips.reduce((sum, trip) => 
+    sum + Math.abs((trip.actual_final_tip || 0) - (trip.initial_estimated_tip || 0)), 0
+  );
+
+  const avgVariance = totalVariance / tripsWithTips.length;
+  const accurateTrips = tripsWithTips.filter(trip => 
+    Math.abs((trip.actual_final_tip || 0) - (trip.initial_estimated_tip || 0)) <= 1.00
+  ).length;
+
+  return {
+    available: true,
+    trips_with_data: tripsWithTips.length,
+    average_variance: avgVariance,
+    accuracy_rate: (accurateTrips / tripsWithTips.length) * 100,
+    performance: avgVariance <= 1.00 ? 'excellent' : avgVariance <= 2.50 ? 'good' : 'needs_improvement'
+  };
+}
+
+function generateProjections(trips: any[], timeframe: string): Record<string, any> | null {
+  if (trips.length === 0) return null;
+
+  const avgDailyProfit = trips.reduce((sum, trip) => sum + (trip.profit || 0), 0) / trips.length;
+  const avgDailyTrips = trips.length / Math.max(1, getTimeframeDays(timeframe));
+
+  return {
+    daily_projection: {
+      avg_profit: avgDailyProfit * avgDailyTrips,
+      avg_trips: avgDailyTrips
+    },
+    weekly_projection: {
+      avg_profit: avgDailyProfit * avgDailyTrips * 7,
+      avg_trips: avgDailyTrips * 7
+    },
+    monthly_projection: {
+      avg_profit: avgDailyProfit * avgDailyTrips * 30,
+      avg_trips: avgDailyTrips * 30
+    }
+  };
+}
+
+function analyzeTrends(trips: any[], timeframe: string): Record<string, any> | null {
+  if (trips.length < 2) return null;
+
+  // Sort trips by date
+  const sortedTrips = [...trips].sort((a, b) => 
+    new Date(a.trip_date).getTime() - new Date(b.trip_date).getTime()
+  );
+
+  const halfPoint = Math.floor(sortedTrips.length / 2);
+  const firstHalf = sortedTrips.slice(0, halfPoint);
+  const secondHalf = sortedTrips.slice(halfPoint);
+
+  const firstHalfAvg = firstHalf.reduce((sum, trip) => sum + (trip.profit || 0), 0) / firstHalf.length;
+  const secondHalfAvg = secondHalf.reduce((sum, trip) => sum + (trip.profit || 0), 0) / secondHalf.length;
+
+  const trendDirection = secondHalfAvg > firstHalfAvg * 1.1 ? 'improving' : 
+                       secondHalfAvg < firstHalfAvg * 0.9 ? 'declining' : 'stable';
+
+  const trendPercentage = firstHalfAvg > 0 ? 
+    ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100 : 0;
+
+  return {
+    direction: trendDirection,
+    percentage_change: trendPercentage,
+    first_half_avg: firstHalfAvg,
+    second_half_avg: secondHalfAvg,
+    message: `Performance is ${trendDirection} with ${Math.abs(trendPercentage).toFixed(1)}% change`
+  };
+}
+
+function generateAIRecommendations(context: {
+  performanceScore: number;
+  avgMPG: number;
+  totalProfit: number;
+  totalDistance: number;
+  tipAnalysis: any;
+  timeframe: string;
+}): string[] {
+  const recommendations: string[] = [];
+
+  // Performance-based recommendations
+  if (context.performanceScore < 50) {
+    recommendations.push('Performance below average - focus on higher-value trips and fuel efficiency');
+  } else if (context.performanceScore > 80) {
+    recommendations.push('Excellent performance! Maintain current strategies and consider expanding hours');
+  }
+
+  // Honda Odyssey specific recommendations
+  if (context.avgMPG < 17) {
+    recommendations.push('Honda Odyssey fuel efficiency below optimal - check tire pressure and reduce idle time');
+  } else if (context.avgMPG > 21) {
+    recommendations.push('Outstanding fuel efficiency! Your driving habits are maximizing Honda Odyssey performance');
+  }
+
+  // Profit recommendations
+  if (context.totalDistance > 0) {
+    const profitPerMile = context.totalProfit / context.totalDistance;
+    if (profitPerMile < 1.00) {
+      recommendations.push('Consider targeting shorter, higher-value trips to improve profit per mile');
+    }
+  }
+
+  // Tip recommendations
+  if (context.tipAnalysis?.available && context.tipAnalysis.accuracy_rate < 70) {
+    recommendations.push('Tip estimation accuracy needs improvement - review factors affecting tip amounts');
+  }
+
+  // General recommendations
+  if (recommendations.length === 0) {
+    recommendations.push('Continue current strategies - performance metrics are within expected ranges');
+  }
+
+  return recommendations;
+}
+
+function generateKeyInsights(context: {
+  performanceScore: number;
+  avgMPG: number;
+  totalProfit: number;
+  totalTrips: number;
+  timeframe: string;
+}): string[] {
+  const insights: string[] = [];
+
+  insights.push(`Overall performance score: ${context.performanceScore}/100`);
+  insights.push(`Honda Odyssey efficiency: ${context.avgMPG.toFixed(1)} MPG (rated: 19 MPG)`);
+  insights.push(`Average profit per trip: $${(context.totalProfit / context.totalTrips).toFixed(2)}`);
+  
+  if (context.avgMPG >= 19) {
+    insights.push('🎉 Exceeding Honda Odyssey rated fuel efficiency!');
+  }
+  
+  if (context.performanceScore >= 80) {
+    insights.push('🌟 Top-tier performance - you\'re in the top 20% of drivers!');
+  }
+
+  return insights;
+}
+
+function getTimeframeDays(timeframe: string): number {
+  switch (timeframe) {
+    case 'today': return 1;
+    case 'week': return 7;
+    case 'month': return 30;
+    default: return 7; // Default to week for calculations
+  }
 }
 
 function getTipVarianceRecommendations(accuracy: string, variancePercent: number): string[] {
