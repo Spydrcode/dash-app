@@ -61,7 +61,8 @@ export default function UploadPage() {
       // Redirect to main dashboard after a short delay to show the notification
       setTimeout(() => {
         console.log('Redirecting to dashboard...');
-        router.push('/');
+        // Use window.location for more reliable navigation in production
+        window.location.href = '/';
       }, 2000);
     } else {
       console.log('No completed files found - upload may have failed');
