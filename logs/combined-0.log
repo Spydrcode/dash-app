@@ -1,0 +1,255 @@
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
+C:\Users\dusti\AppData\Local\nvm\v20.19.5\NPM.CMD:1
+@ECHO off
+^
+
+SyntaxError: Invalid or unexpected token
+    at wrapSafe (node:internal/modules/cjs/loader:1464:18)
+    at Module._compile (node:internal/modules/cjs/loader:1495:20)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\ProcessContainer.js:292:27
+    at wrapper (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\once.js:12:16)
+    at next (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\waterfall.js:96:20)
+    at C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\node_modules\async\internal\onlyOnce.js:12:16
+    at WriteStream.<anonymous> (C:\Users\dusti\AppData\Local\nvm\v20.19.5\node_modules\pm2\lib\Utility.js:186:13)
