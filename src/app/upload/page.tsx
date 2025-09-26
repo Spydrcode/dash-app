@@ -4,6 +4,7 @@ import FileUpload from '@/components/FileUpload';
 import ProcessingResults from '@/components/ProcessingResults';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface UploadedFile {
@@ -18,6 +19,7 @@ interface UploadedFile {
 }
 
 export default function UploadPage() {
+  const router = useRouter();
   const [driverId] = useState('550e8400-e29b-41d4-a716-446655440000'); // Mock driver ID
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -31,26 +33,38 @@ export default function UploadPage() {
     setUploadedFiles(files);
     setUploadComplete(true);
     
-    // Auto-process the first uploaded file for demonstration
-    const firstCompletedFile = files.find(f => f.status === 'completed' && f.path);
-    console.log('First completed file:', firstCompletedFile);
+    // Check if any files were successfully uploaded
+    const completedFiles = files.filter(f => f.status === 'completed');
+    console.log('Completed files:', completedFiles.length);
     
-    if (firstCompletedFile && firstCompletedFile.path) {
-      console.log('Setting file for processing:', firstCompletedFile.path);
-      setSelectedFileForProcessing(firstCompletedFile.path);
-      // Don't auto-show results, let user click the button
-      console.log('Upload complete, waiting for user to click View AI Results');
+    if (completedFiles.length > 0) {
+      // Show success notification
+      window.dispatchEvent(new CustomEvent('addNotification', {
+        detail: {
+          type: 'success',
+          title: 'Insights Updated!',
+          message: `${completedFiles.length} screenshot${completedFiles.length !== 1 ? 's' : ''} processed. AI insights have been updated with new trip data.`,
+          autoClose: true,
+          duration: 5000
+        }
+      }));
+      
+      // Trigger immediate dashboard refresh
+      window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      
+      // Trigger delayed AI insights refresh to ensure OCR processing completes
+      setTimeout(() => {
+        console.log('Upload page: Triggering delayed AI insights refresh after OCR processing');
+        window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      }, 4000);
+      
+      // Redirect to main dashboard after a short delay to show the notification
+      setTimeout(() => {
+        console.log('Redirecting to dashboard...');
+        router.push('/');
+      }, 2000);
     } else {
-      console.log('No completed file with path found');
-      console.log('Available files:', files.map(f => ({ name: f.file.name, status: f.status, path: f.path })));
-      // Try to use the first uploaded file if available
-      const firstFile = files.find(f => f.status === 'completed');
-      if (firstFile) {
-        console.log('Using first completed file for processing');
-        // This will be set later when user clicks "View AI Results"
-      } else {
-        console.log('No completed files found - upload may have failed');
-      }
+      console.log('No completed files found - upload may have failed');
     }
   };
 

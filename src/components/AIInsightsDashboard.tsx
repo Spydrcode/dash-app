@@ -139,7 +139,20 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
   // Listen for custom refresh events (from uploads, etc.)
   useEffect(() => {
     const handleRefreshEvent = () => {
-      console.log('AI Insights refresh event received');
+      console.log('AI Insights refresh event received - updating with latest data...');
+      
+      // Show a brief notification that insights are updating
+      window.dispatchEvent(new CustomEvent('addNotification', {
+        detail: {
+          type: 'info',
+          title: 'Updating AI Insights...',
+          message: 'Processing new trip data and refreshing insights.',
+          autoClose: true,
+          duration: 2000
+        }
+      }));
+      
+      // Fetch fresh insights
       fetchInsights(timeframe);
     };
 

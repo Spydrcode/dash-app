@@ -40,63 +40,65 @@ export async function checkForDuplicate(
     const fileHash = generateFileHash(fileBuffer);
     const perceptualHash = generatePerceptualHash(fileBuffer);
 
-    // Check for exact file hash match (identical files)
-    const { data: exactMatch } = await supabaseAdmin
-      .from('trip_screenshots')
-      .select('id, upload_timestamp, trip_id, file_hash')
-      .eq('file_hash', fileHash)
-      .limit(1)
-      .single();
-
-    if (exactMatch) {
-      return {
-        isDuplicate: true,
-        existingScreenshot: exactMatch,
-        reason: 'Exact file match - identical content detected'
-      };
-    }
-
-    // Check for similar file size and name (potential duplicates)
-    const sizeTolerance = 0.05; // 5% tolerance
-    const minSize = fileSize * (1 - sizeTolerance);
-    const maxSize = fileSize * (1 + sizeTolerance);
-
-    const { data: similarFiles } = await supabaseAdmin
-      .from('trip_screenshots')
-      .select('id, upload_timestamp, trip_id, file_size, original_filename, perceptual_hash')
-      .gte('file_size', minSize)
-      .lte('file_size', maxSize)
-      .limit(10);
-
-    if (similarFiles) {
-      // Check for perceptual hash matches (similar images)
-      const perceptualMatch = similarFiles.find(file => 
-        file.perceptual_hash === perceptualHash
-      );
-
-      if (perceptualMatch) {
+    // Since the database doesn't have the new columns yet, we'll use a simpler approach
+    // First, check if we've seen this exact file hash in this session (memory-based)
+    const globalThis = global as any;
+    if (typeof globalThis !== 'undefined') {
+      globalThis.uploadedHashes = globalThis.uploadedHashes || new Set();
+      if (globalThis.uploadedHashes.has(fileHash)) {
         return {
           isDuplicate: true,
-          existingScreenshot: perceptualMatch,
-          reason: 'Similar image detected - likely the same screenshot'
+          reason: 'File already processed in this session'
         };
       }
+      // Store the hash for this session
+      globalThis.uploadedHashes.add(fileHash);
+    }
 
-      // Check for identical filename within recent timeframe (last 24 hours)
-      const recentTimeThreshold = new Date();
-      recentTimeThreshold.setHours(recentTimeThreshold.getHours() - 24);
+    // Check existing screenshots for similar patterns
+    // Look for files with similar size and recent upload patterns
+    const sizeTolerance = 0.02; // 2% tolerance for file size
+    const minSize = Math.max(1, fileSize * (1 - sizeTolerance));
+    const maxSize = fileSize * (1 + sizeTolerance);
 
-      const recentSameNameFile = similarFiles.find(file => 
-        file.original_filename === fileName &&
-        new Date(file.upload_timestamp) > recentTimeThreshold
-      );
+    // Get recent uploads to check for potential duplicates
+    const recentTimeThreshold = new Date();
+    recentTimeThreshold.setHours(recentTimeThreshold.getHours() - 2); // Last 2 hours
 
-      if (recentSameNameFile) {
-        return {
-          isDuplicate: true,
-          existingScreenshot: recentSameNameFile,
-          reason: 'Same filename uploaded within last 24 hours'
-        };
+    const { data: recentScreenshots } = await supabaseAdmin
+      .from('trip_screenshots')
+      .select('id, created_at, image_path')
+      .gte('created_at', recentTimeThreshold.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (recentScreenshots && recentScreenshots.length > 0) {
+      // Check for suspicious patterns like many uploads in short time
+      const recentUploadsCount = recentScreenshots.length;
+      const lastHour = new Date();
+      lastHour.setHours(lastHour.getHours() - 1);
+      
+      const veryRecentUploads = recentScreenshots.filter(s => 
+        new Date(s.created_at) > lastHour
+      ).length;
+
+      // If more than 5 uploads in the last hour, be more strict about duplicates
+      if (veryRecentUploads > 5) {
+        // Check if a similar filename pattern was recently uploaded
+        const baseFileName = fileName.replace(/\d+/g, ''); // Remove numbers
+        const recentSimilarName = recentScreenshots.some(s => {
+          const pathParts = s.image_path.split('/');
+          const uploadedFileName = pathParts[pathParts.length - 1];
+          const baseUploadedName = uploadedFileName.replace(/\d+/g, '').replace(/^\d+-/, '');
+          return baseUploadedName === baseFileName;
+        });
+
+        if (recentSimilarName) {
+          return {
+            isDuplicate: true,
+            reason: 'Similar filename uploaded recently - potential duplicate batch'
+          };
+        }
       }
     }
 

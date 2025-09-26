@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Screenshot Status</title>
+    <script>
+        async function fixStatus() {
+            const button = document.getElementById('fixButton');
+            const output = document.getElementById('output');
+            
+            button.disabled = true;
+            button.textContent = 'Fixing...';
+            output.textContent = 'Processing...';
+            
+            try {
+                const response = await fetch('/api/fix-screenshot-status', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                output.textContent = JSON.stringify(result, null, 2);
+                
+                // Auto-redirect to dashboard after successful fix
+                if (result.success) {
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 3000);
+                }
+            } catch (error) {
+                output.textContent = 'Error: ' + error.message;
+            }
+            
+            button.disabled = false;
+            button.textContent = 'Fix Screenshot Status';
+        }
+        
+        // Auto-run the fix when page loads
+        window.onload = function() {
+            fixStatus();
+        };
+    </script>
+</head>
+<body>
+    <h1>Fix Screenshot Processing Status</h1>
+    <p>Running automatic fix for screenshot processing status...</p>
+    <button id="fixButton" onclick="fixStatus()">Fix Screenshot Status</button>
+    <pre id="output">Auto-fixing screenshot processing status...</pre>
+</body>
+</html>

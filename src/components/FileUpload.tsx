@@ -202,19 +202,16 @@ export default function FileUpload({
       console.log('Calling onUploadComplete with:', updatedFiles);
       onUploadComplete?.(updatedFiles);
 
-      // Trigger dashboard refresh event for AI insights
-      console.log('Triggering dashboard refresh after upload');
+      // Trigger immediate dashboard refresh
+      console.log('Triggering immediate dashboard refresh after upload');
       window.dispatchEvent(new CustomEvent('dashboardRefresh'));
       
-      // Show success notification
-      window.dispatchEvent(new CustomEvent('addNotification', {
-        detail: {
-          type: 'success',
-          title: 'Upload Successful!',
-          message: `${updatedFiles.length} screenshots uploaded and processing started. AI insights will update automatically.`,
-          autoClose: true
-        }
-      }));
+      // Trigger delayed AI insights refresh to ensure OCR processing completes
+      console.log('Scheduling delayed AI insights refresh...');
+      setTimeout(() => {
+        console.log('Triggering delayed AI insights refresh after OCR processing');
+        window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      }, 3000); // Wait 3 seconds for OCR processing to complete
 
     } catch (error) {
       console.error('Upload failed:', error);

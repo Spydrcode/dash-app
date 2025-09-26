@@ -281,7 +281,8 @@ class EnhancedMCPAgent {
         ocrResult.imageType === 'initial_offer' ? 'initial_offer' :
         ocrResult.imageType === 'final_receipt' ? 'final_total' : 'other';
       
-      const screenshotInsertData: any = {
+      // Base screenshot data
+      const baseScreenshotData = {
         trip_id: tripId,
         screenshot_type: screenshotType,
         image_path: imagePath,
@@ -299,24 +300,57 @@ class EnhancedMCPAgent {
         processing_notes: `Successfully processed ${ocrResult.imageType} with ${ocrResult.numbers.length} extracted numbers`
       };
 
-      // Add file metadata if provided (will be ignored if columns don't exist)
+      let screenshot;
+      let screenshotError;
+
+      // Try to insert with file metadata first (if columns exist)
       if (fileMetadata) {
-        screenshotInsertData.original_filename = fileMetadata.originalName;
-        screenshotInsertData.file_hash = fileMetadata.fileHash;
-        screenshotInsertData.perceptual_hash = fileMetadata.perceptualHash;
-        screenshotInsertData.file_size = fileMetadata.fileSize;
-        console.log('Adding file metadata to screenshot record:', {
+        const screenshotWithMetadata: any = {
+          ...baseScreenshotData,
+          original_filename: fileMetadata.originalName,
+          file_hash: fileMetadata.fileHash,
+          perceptual_hash: fileMetadata.perceptualHash,
+          file_size: fileMetadata.fileSize
+        };
+
+        console.log('Attempting to save with file metadata:', {
           filename: fileMetadata.originalName,
           hash: fileMetadata.fileHash?.substring(0, 8) + '...',
           size: fileMetadata.fileSize
         });
-      }
 
-      const { data: screenshot, error: screenshotError } = await supabaseAdmin
-        .from('trip_screenshots')
-        .insert(screenshotInsertData)
-        .select()
-        .single();
+        const metadataResult = await supabaseAdmin
+          .from('trip_screenshots')
+          .insert(screenshotWithMetadata)
+          .select()
+          .single();
+
+        if (metadataResult.error && metadataResult.error.message?.includes('file_hash')) {
+          console.log('File metadata columns not available, retrying without metadata...');
+          // Fall back to basic insert without metadata
+          const basicResult = await supabaseAdmin
+            .from('trip_screenshots')
+            .insert(baseScreenshotData)
+            .select()
+            .single();
+          
+          screenshot = basicResult.data;
+          screenshotError = basicResult.error;
+        } else {
+          screenshot = metadataResult.data;
+          screenshotError = metadataResult.error;
+        }
+      } else {
+        // No metadata provided, insert basic data
+        const basicResult = await supabaseAdmin
+          .from('trip_screenshots')
+          .insert(baseScreenshotData)
+          .select()
+          .single();
+        
+        screenshot = basicResult.data;
+        screenshotError = basicResult.error;
+      }
         
       if (screenshotError) throw screenshotError;
       

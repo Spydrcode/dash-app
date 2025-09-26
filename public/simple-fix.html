@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Fix Test</title>
+</head>
+<body>
+    <h1>Running Fix...</h1>
+    <div id="result">Loading...</div>
+    
+    <script>
+        fetch('/api/fix-screenshot-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('result').innerHTML = 
+                '<h2>Fix Results:</h2>' +
+                '<pre>' + JSON.stringify(data, null, 2) + '</pre>' +
+                '<p><a href="/">Return to Dashboard</a></p>';
+        })
+        .catch(error => {
+            document.getElementById('result').innerHTML = 
+                '<h2>Error:</h2>' + 
+                '<p>' + error.message + '</p>' +
+                '<p><a href="/">Return to Dashboard</a></p>';
+        });
+    </script>
+</body>
+</html>

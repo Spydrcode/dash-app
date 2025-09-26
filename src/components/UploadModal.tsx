@@ -16,8 +16,30 @@ export default function UploadModal({ isOpen, onCloseAction, driverId }: UploadM
   const [uploadedCount, setUploadedCount] = useState(0);
 
   const handleUploadComplete = (files: any[]) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-    setUploadedCount(files.length);
+    const completedFiles = files.filter(f => f.status === 'completed');
+    setUploadedCount(completedFiles.length);
     setUploadStatus('success');
+    
+    if (completedFiles.length > 0) {
+      // Show success notification
+      window.dispatchEvent(new CustomEvent('addNotification', {
+        detail: {
+          type: 'success',
+          title: 'Insights Updated!',
+          message: `${completedFiles.length} screenshot${completedFiles.length !== 1 ? 's' : ''} processed. AI insights have been updated with new trip data.`,
+          autoClose: true
+        }
+      }));
+      
+      // Trigger immediate dashboard refresh
+      window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      
+      // Trigger delayed AI insights refresh to ensure OCR processing completes
+      setTimeout(() => {
+        console.log('UploadModal: Triggering delayed AI insights refresh after OCR processing');
+        window.dispatchEvent(new CustomEvent('dashboardRefresh'));
+      }, 3000);
+    }
     
     // Auto-close after success
     setTimeout(() => {
