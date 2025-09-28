@@ -22,6 +22,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: tripsError.message }, { status: 500 });
     }
 
+    // Get weekly validation sessions count
+    const { data: weeklySessions, error: sessionsError } = await supabaseAdmin
+      .from('reanalysis_sessions')
+      .select('id, analysis_type, results')
+      .eq('analysis_type', 'weekly');
+    
+    const weeklyValidationsCount = weeklySessions?.length || 0;
+
     // Calculate real stats from actual data
     const totalTrips = trips?.length || 0;
     
@@ -55,12 +63,30 @@ export async function GET(request: NextRequest) {
     const avgMPG = totalFuelCost > 0 ? totalDistance / (totalFuelCost / 3.50) : 19;
     const avgTripProfit = processedTrips > 0 ? totalProfit / processedTrips : 0;
 
-    // Count screenshots by type
+    // Count screenshots by type and track trip status
     let totalScreenshots = 0;
     let processedScreenshots = 0;
     const screenshotTypes = { dashboard: 0, initial_offer: 0, final_total: 0 };
+    const tripStatus = { complete: 0, partial: 0, incomplete: 0 };
+    let totalTipVariance = 0;
+    let accurateTrips = 0;
+    let tripsWithVariance = 0;
 
     trips?.forEach(trip => {
+      // Count trip status
+      const status = trip.trip_status || 'incomplete';
+      if (tripStatus.hasOwnProperty(status)) {
+        tripStatus[status as keyof typeof tripStatus]++;
+      }
+      
+      // Track tip accuracy
+      if (trip.tip_variance !== null && trip.tip_variance !== undefined) {
+        totalTipVariance += Math.abs(trip.tip_variance);
+        tripsWithVariance++;
+        if (trip.tip_accuracy === 'exact') accurateTrips++;
+      }
+      
+      // Count screenshots
       if (trip.trip_screenshots) {
         totalScreenshots += trip.trip_screenshots.length;
         trip.trip_screenshots.forEach((screenshot: any) => {
@@ -71,6 +97,10 @@ export async function GET(request: NextRequest) {
         });
       }
     });
+    
+    // Calculate validation metrics
+    const accuracyRate = tripsWithVariance > 0 ? (accurateTrips / tripsWithVariance) * 100 : 0;
+    const avgTipVariance = tripsWithVariance > 0 ? totalTipVariance / tripsWithVariance : 0;
 
     return NextResponse.json({
       success: true,
@@ -84,9 +114,16 @@ export async function GET(request: NextRequest) {
         processedTrips,
         totalScreenshots,
         processedScreenshots,
-        screenshotTypes
+        screenshotTypes,
+        tripStatus,
+        validationSummary: {
+          accuracyRate: Math.round(accuracyRate * 10) / 10,
+          totalValidated: tripsWithVariance,
+          weeklyValidationsCount: weeklyValidationsCount,
+          avgTipVariance: Math.round(avgTipVariance * 100) / 100
+        }
       },
-      message: processedTrips === 0 ? 'Upload screenshots to see real data' : 'Real data from processed trips'
+      message: processedTrips === 0 ? 'Upload screenshots to see real data' : `Real data from ${processedTrips} processed trips with ${tripStatus.complete} complete validations`
     });
 
   } catch (error) {

@@ -61,9 +61,27 @@ export default function UploadPage() {
       // Redirect to main dashboard after a short delay to show the notification
       setTimeout(() => {
         console.log('Redirecting to dashboard...');
-        // Use window.location for more reliable navigation in production
-        window.location.href = '/';
-      }, 2000);
+        
+        // Mobile-friendly redirect with multiple fallbacks
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        console.log('Mobile detected:', isMobile);
+        
+        if (isMobile) {
+          // For mobile: try multiple redirect methods
+          try {
+            window.location.replace('/');
+          } catch (e) {
+            try {
+              window.location.assign('/');
+            } catch (e2) {
+              window.location.href = '/';
+            }
+          }
+        } else {
+          // Desktop: use standard redirect
+          window.location.href = '/';
+        }
+      }, 1000); // Short delay for mobile compatibility
     } else {
       console.log('No completed files found - upload may have failed');
     }

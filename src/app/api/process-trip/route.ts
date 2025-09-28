@@ -55,9 +55,7 @@ class EnhancedMCPAgent {
 
   private async performSmartOCR(imagePath: string): Promise<{text: string, imageType: string, numbers: string[]}> {
     try {
-      const fetch = (await import('node-fetch')).default;
-      
-      // Download image
+      // Download image using built-in fetch
       const response = await fetch(imagePath);
       if (!response.ok) throw new Error(`Image download failed: ${response.statusText}`);
       

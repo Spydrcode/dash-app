@@ -14,6 +14,20 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: [],
+  // Development server configuration for ngrok
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: 'https://specialistic-annabella-unsabled.ngrok-free.dev',
+          },
+        ],
+      },
+    ];
+  },
   // Exclude MCP server files from build
   outputFileTracingExcludes: {
     '*': [

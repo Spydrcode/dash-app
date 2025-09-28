@@ -1,5 +1,6 @@
 'use client';
 
+import { ScreenshotProcessingMonitor } from '@/lib/insight-update-manager';
 import React, { useEffect, useState } from 'react';
 
 interface InsightsSummary {
@@ -78,6 +79,8 @@ interface AIInsightsData {
   trends: Trends;
   key_insights: string[];
   ai_recommendations: string[];
+  ai_generated?: boolean;
+  last_updated?: string;
 }
 
 interface AIInsightsDashboardProps {
@@ -98,19 +101,21 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
     setError(null);
     
     try {
-      // Add a cache buster to ensure fresh data
+      // Add a cache buster to ensure fresh data from AI agents
       const cacheBuster = Date.now();
       const response = await fetch('/api/unified-mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache', // Ensure no caching
         },
         body: JSON.stringify({
           action: 'ai_insights',
           timeframe: selectedTimeframe,
           includeProjections: true,
           includeTrends: true,
-          cacheBuster // Force fresh data
+          cacheBuster, // Force fresh data
+          useAIAgents: true // Flag to use new AI agents
         }),
       });
 
@@ -119,6 +124,12 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
       }
 
       const data = await response.json();
+      console.log(`🤖 AI Insights loaded for ${selectedTimeframe}:`, {
+        trips: data.summary?.total_trips || 0,
+        earnings: data.summary?.total_earnings || 0,
+        aiGenerated: data.ai_generated || false
+      });
+      
       setInsights(data);
     } catch (err) {
       console.error('Error fetching insights:', err);
@@ -134,30 +145,41 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
 
   useEffect(() => {
     fetchInsights(timeframe);
+    
+    // Start monitoring screenshot processing
+    ScreenshotProcessingMonitor.startMonitoring();
+    
+    return () => {
+      ScreenshotProcessingMonitor.stopMonitoring();
+    };
   }, [timeframe]);
 
   // Listen for custom refresh events (from uploads, etc.)
   useEffect(() => {
     const handleRefreshEvent = () => {
-      console.log('AI Insights refresh event received - updating with latest data...');
+      console.log('🔄 AI Insights refresh event received - updating with latest data...');
       
       // Show a brief notification that insights are updating
-      window.dispatchEvent(new CustomEvent('addNotification', {
-        detail: {
-          type: 'info',
-          title: 'Updating AI Insights...',
-          message: 'Processing new trip data and refreshing insights.',
-          autoClose: true,
-          duration: 2000
-        }
-      }));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('addNotification', {
+          detail: {
+            type: 'info',
+            title: 'Updating AI Insights...',
+            message: 'Processing new trip data and refreshing insights.',
+            autoClose: true,
+            duration: 2000
+          }
+        }));
+      }
       
-      // Fetch fresh insights
+      // Fetch fresh insights with cache buster
       fetchInsights(timeframe);
     };
 
-    window.addEventListener('dashboardRefresh', handleRefreshEvent);
-    return () => window.removeEventListener('dashboardRefresh', handleRefreshEvent);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('dashboardRefresh', handleRefreshEvent);
+      return () => window.removeEventListener('dashboardRefresh', handleRefreshEvent);
+    }
   }, [timeframe]);
 
   const handleTimeframeChange = (newTimeframe: string) => {
@@ -218,18 +240,36 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">🚗 Honda Odyssey AI Insights</h1>
-            <p className="text-gray-600 mt-2">Real-time trip analytics and performance insights</p>
+            <h1 className="text-3xl font-bold text-gray-900">
+              🚗 Honda Odyssey AI Insights
+              {insights.ai_generated && (
+                <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                  🤖 AI Generated
+                </span>
+              )}
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Real-time trip analytics powered by specialized AI agents
+              {insights.last_updated && (
+                <span className="text-xs text-gray-500 ml-2">
+                  • Updated {new Date(insights.last_updated).toLocaleTimeString()}
+                </span>
+              )}
+            </p>
           </div>
           
           <div className="flex gap-2 items-center">
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="px-3 py-2 rounded-lg font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 border border-gray-200 disabled:opacity-50"
-              title="Refresh insights with latest data"
+              className={`px-3 py-2 rounded-lg font-medium border border-gray-200 transition-all ${
+                loading 
+                  ? 'bg-blue-100 text-blue-600 animate-pulse' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={loading ? 'AI agents analyzing data...' : 'Refresh insights with latest data'}
             >
-              {loading ? '🔄' : '↻'}
+              {loading ? '🤖' : '↻'} {loading ? 'AI Processing...' : ''}
             </button>
             {['day', 'week', 'month', 'year'].map((period) => (
               <button
@@ -262,7 +302,7 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
           <div className="bg-white rounded-lg border border-gray-200 p-4">
             <div className="text-sm font-medium text-gray-600">Performance Score</div>
             <div className={`text-2xl font-bold ${getPerformanceColor(insights.summary?.performance_score || 0)}`}>
-              {insights.summary?.performance_score || 0}/100
+              {Math.round(insights.summary?.performance_score || 0)}/100
             </div>
             <div className="text-xs text-gray-500 mt-1">
               {(insights.summary?.performance_score || 0) >= 80 ? 'Excellent' : 

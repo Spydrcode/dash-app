@@ -1,3 +1,5 @@
+import { AIInsightsCoordinator } from "@/lib/ai-insight-agents";
+import { SpecializedAICoordinator } from '@/lib/specialized-ai-agents';
 import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -931,12 +933,16 @@ async function handleAIInsights(params: {
       }) || [];
     }
 
-    // Generate comprehensive AI insights
-    const insights = await generateEnhancedInsights(
+    // Generate comprehensive AI insights using specialized agents
+    console.log(`🎯 Using OllamaAIInsightsCoordinator for ${filteredTrips.length} trips`);
+    const insights = await AIInsightsCoordinator.generateCompleteInsights(
       filteredTrips, 
       timeframe, 
       { includeProjections, includeTrends }
     );
+    
+    // Log the insights summary to verify data flow
+    console.log(`📊 AI Coordinator Results: ${insights.summary?.total_trips || 0} trips, $${(insights.summary?.total_earnings || 0).toFixed(2)} earnings, $${(insights.summary?.total_profit || 0).toFixed(2)} profit`);
 
     return NextResponse.json({
       success: true,
@@ -997,8 +1003,22 @@ async function generateComprehensiveInsights(
     avgMPG
   });
 
-  // Time-based analysis
-  const timeAnalysis = analyzeTimePatterns(trips, timeframe);
+  // Time-based analysis using AI agent
+  console.log('🤖 Using Specialized AI Agents for enhanced analysis...');
+  const specializedCoordinator = new SpecializedAICoordinator();
+  
+  const summaryData = {
+    timeframe,
+    total_trips: totalTrips,
+    total_earnings: totalEarnings,
+    total_distance: totalDistance,
+    total_profit: totalProfit,
+    performance_score: performanceScore,
+    profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
+  };
+
+  // Get AI-enhanced analysis for performance and time patterns
+  const aiEnhancedAnalysis = await specializedCoordinator.generateEnhancedInsights(trips, summaryData);
 
   // Tip analysis (if available)
   const tipAnalysis = analyzeTipPerformance(trips);
@@ -1020,15 +1040,7 @@ async function generateComprehensiveInsights(
   });
 
   return {
-    summary: {
-      timeframe,
-      total_trips: totalTrips,
-      total_earnings: totalEarnings,
-      total_distance: totalDistance,
-      total_profit: totalProfit,
-      performance_score: performanceScore,
-      profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
-    },
+    summary: summaryData,
     honda_odyssey: {
       actual_mpg: avgMPG,
       rated_mpg: 19,
@@ -1036,13 +1048,8 @@ async function generateComprehensiveInsights(
       total_fuel_cost: totalFuelCost,
       fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
     },
-    performance_breakdown: {
-      earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
-      profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
-      average_trip_profit: totalProfit / totalTrips,
-      fuel_cost_ratio: totalEarnings > 0 ? (totalFuelCost / totalEarnings) * 100 : 0
-    },
-    time_analysis: timeAnalysis,
+    performance_breakdown: aiEnhancedAnalysis.performance_breakdown,
+    time_analysis: aiEnhancedAnalysis.time_analysis,
     tip_analysis: tipAnalysis,
     projections,
     trends,
@@ -1053,7 +1060,9 @@ async function generateComprehensiveInsights(
       totalProfit,
       totalTrips,
       timeframe
-    })
+    }),
+    ai_enhanced: aiEnhancedAnalysis.ai_enhanced,
+    generated_by: aiEnhancedAnalysis.generated_by
   };
 }
 
@@ -1084,7 +1093,15 @@ async function generateEnhancedInsights(
         earnings_per_mile: 0,
         profit_per_mile: 0,
         average_trip_profit: 0,
-        fuel_cost_ratio: 0
+        fuel_cost_ratio: 0,
+        ai_generated: false,
+        agent: 'No data available'
+      },
+      time_analysis: {
+        best_day: { day: 'N/A', profit: 0, trips: 0 },
+        best_hour: { hour: 'N/A', profit: 0, trips: 0 },
+        ai_generated: false,
+        agent: 'No data available'
       },
       key_insights: ['Upload trip screenshots to start getting AI insights'],
       ai_recommendations: ['Take screenshots of your trip offers and final totals to begin analysis']
@@ -1121,8 +1138,22 @@ async function generateEnhancedInsights(
     screenshotStats
   });
 
-  // Enhanced time analysis
-  const timeAnalysis = analyzeEnhancedTimePatterns(trips, timeframe);
+  // Enhanced time analysis using AI agents
+  console.log('🤖 Using Specialized AI Agents for enhanced time and performance analysis...');
+  const specializedCoordinator = new SpecializedAICoordinator();
+  
+  const summaryData = {
+    timeframe,
+    total_trips: totalTrips,
+    total_earnings: totalEarnings,
+    total_distance: totalDistance,
+    total_profit: totalProfit,
+    performance_score: performanceScore,
+    profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
+  };
+
+  // Get AI-enhanced analysis for performance and time patterns
+  const aiEnhancedAnalysis = await specializedCoordinator.generateEnhancedInsights(trips, summaryData);
 
   // Enhanced tip analysis
   const tipAnalysis = analyzeEnhancedTipPerformance(trips);
@@ -1161,13 +1192,8 @@ async function generateEnhancedInsights(
       total_fuel_cost: totalFuelCost,
       fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
     },
-    performance_breakdown: {
-      earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
-      profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
-      average_trip_profit: totalTrips > 0 ? totalProfit / totalTrips : 0,
-      fuel_cost_ratio: totalEarnings > 0 ? (totalFuelCost / totalEarnings) : 0
-    },
-    time_analysis: timeAnalysis,
+    performance_breakdown: aiEnhancedAnalysis.performance_breakdown,
+    time_analysis: aiEnhancedAnalysis.time_analysis,
     tip_analysis: {
       accuracy_rate: tipAnalysis.accuracy_rate || 0,
       total_tips: totalTips,
@@ -1185,7 +1211,9 @@ async function generateEnhancedInsights(
       totalTrips,
       timeframe,
       screenshotStats
-    })
+    }),
+    ai_enhanced: aiEnhancedAnalysis.ai_enhanced,
+    generated_by: aiEnhancedAnalysis.generated_by
   };
 }
 

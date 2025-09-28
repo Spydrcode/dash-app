@@ -107,6 +107,7 @@ export interface TripScreenshot {
     | "final_total"
     | "navigation"
     | "dashboard"
+    | "weekly_summary"
     | "other";
   image_path: string;
   upload_timestamp?: string;
@@ -114,6 +115,7 @@ export interface TripScreenshot {
   extracted_data?: any; // Structured data extracted from image
   is_processed?: boolean;
   processing_notes?: string;
+  created_at?: string;
 }
 
 // New interface for reanalysis sessions
@@ -128,4 +130,64 @@ export interface ReanalysisSession {
   results: any;
   created_at?: string;
   execution_time_ms?: number;
+}
+
+// Vehicle Maintenance & Fuel Tracking Interfaces
+export interface MaintenanceRecord {
+  id?: number;
+  driver_id: string;
+  vehicle_model: string;
+  maintenance_type:
+    | "oil_change"
+    | "oil_filter"
+    | "air_filter"
+    | "tire_rotation"
+    | "brake_service"
+    | "transmission"
+    | "other";
+  description: string;
+  cost: number;
+  odometer_reading: number;
+  service_date: string;
+  next_service_due?: number;
+  next_service_date?: string;
+  service_location?: string;
+  receipt_image?: string;
+  created_at?: string;
+}
+
+export interface FuelRecord {
+  id?: number;
+  driver_id: string;
+  vehicle_model: string;
+  fuel_cost: number;
+  gallons_purchased: number;
+  price_per_gallon: number;
+  odometer_reading: number;
+  fill_up_date: string;
+  gas_station?: string;
+  fuel_type?: string;
+  receipt_image?: string;
+  created_at?: string;
+}
+
+export interface VehicleAlert {
+  id?: number;
+  driver_id: string;
+  vehicle_model: string;
+  alert_type:
+    | "maintenance_due"
+    | "maintenance_overdue"
+    | "fuel_efficiency_drop"
+    | "high_maintenance_cost"
+    | "custom";
+  alert_message: string;
+  severity: "low" | "medium" | "high" | "critical";
+  current_odometer?: number;
+  due_at_odometer?: number;
+  due_date?: string;
+  maintenance_type?: string;
+  is_dismissed?: boolean;
+  created_at?: string;
+  dismissed_at?: string;
 }
