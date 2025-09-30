@@ -1,11 +1,13 @@
 // Test GPT Integration
+require('dotenv').config({ path: '.env.local' });
+
 const testGPTIntegration = async () => {
   try {
     console.log("🧪 Testing GPT Integration...");
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      throw new Error('OPENAI_API_KEY environment variable is required');
+      throw new Error("OPENAI_API_KEY environment variable is required");
     }
 
     // Test OpenAI API connectivity

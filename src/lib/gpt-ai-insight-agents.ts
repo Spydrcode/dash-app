@@ -808,6 +808,7 @@ export class GPTAIInsightsCoordinator {
 
 // Export for backward compatibility
 export {
-    GPTAIInsightsCoordinator as AIInsightsCoordinator,
-    OpenAIService
+  GPTAIInsightsCoordinator as AIInsightsCoordinator,
+  OpenAIService
 };
+
