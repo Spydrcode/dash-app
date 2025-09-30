@@ -1,5 +1,5 @@
 // Test GPT Integration
-require('dotenv').config({ path: '.env.local' });
+require("dotenv").config({ path: ".env.local" });
 
 const testGPTIntegration = async () => {
   try {

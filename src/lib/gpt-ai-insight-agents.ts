@@ -35,10 +35,11 @@ class OpenAIService {
   private baseUrl = 'https://api.openai.com/v1';
 
   constructor() {
-    this.apiKey = process.env.OPENAI_API_KEY;
-    if (!this.apiKey) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is required');
     }
+    this.apiKey = apiKey;
   }
 
   async generateInsights(data: any, model: string = 'gpt-4o'): Promise<any> {

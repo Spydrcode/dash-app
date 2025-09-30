@@ -4,12 +4,31 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 
+interface ValidationResults {
+  validation: {
+    overallAccuracy: number;
+  };
+  discrepancies: Array<{
+    type: string;
+    severity: 'high' | 'medium' | 'low';
+    description: string;
+    recommendation: string;
+  }>;
+  summaryData: {
+    totalTrips: number;
+    totalEarnings: number;
+    totalDistance: number;
+    platform: string;
+  };
+  recommendations?: string[];
+}
+
 export default function WeeklySummaryUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [weekPeriod, setWeekPeriod] = useState('');
-  const [validationResults, setValidationResults] = useState<Record<string, unknown> | null>(null);
+  const [validationResults, setValidationResults] = useState<ValidationResults | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -112,9 +131,9 @@ export default function WeeklySummaryUpload() {
       const validationResult = await validationResponse.json();
       
       if (validationResult.success) {
-        setValidationResults(validationResult.data);
+        setValidationResults(validationResult.data as ValidationResults);
         setUploadStatus(
-          `✅ Weekly Summary Validated! Accuracy: ${validationResult.data.validation.overallAccuracy.toFixed(1)}%`
+          `✅ Weekly Summary Validated! Accuracy: ${(validationResult.data as ValidationResults).validation.overallAccuracy.toFixed(1)}%`
         );
         
         // Show results for a few seconds then redirect
@@ -271,13 +290,13 @@ export default function WeeklySummaryUpload() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="bg-blue-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-blue-600">
-                  {validationResults.validation.overallAccuracy.toFixed(1)}%
+                  {validationResults.validation?.overallAccuracy?.toFixed(1) || '0'}%
                 </div>
                 <div className="text-sm text-gray-600">Overall Accuracy</div>
               </div>
               <div className="bg-green-50 p-4 rounded-lg">
                 <div className="text-2xl font-bold text-green-600">
-                  {validationResults.discrepancies.length}
+                  {validationResults.discrepancies?.length || 0}
                 </div>
                 <div className="text-sm text-gray-600">Discrepancies Found</div>
               </div>
@@ -289,27 +308,29 @@ export default function WeeklySummaryUpload() {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="font-medium">Total Trips:</span> {validationResults.summaryData.totalTrips}
+                    <span className="font-medium">Total Trips:</span> {validationResults.summaryData?.totalTrips || 0}
                   </div>
                   <div>
-                    <span className="font-medium">Total Earnings:</span> ${validationResults.summaryData.totalEarnings.toFixed(2)}
+                    <span className="font-medium">Total Earnings:</span> ${validationResults.summaryData?.totalEarnings?.toFixed(2) || '0.00'}
                   </div>
                   <div>
-                    <span className="font-medium">Distance:</span> {validationResults.summaryData.totalDistance.toFixed(1)} mi
+                    <span className="font-medium">Distance:</span> {validationResults.summaryData?.totalDistance?.toFixed(1) || '0.0'} mi
                   </div>
                   <div>
-                    <span className="font-medium">Platform:</span> {validationResults.summaryData.platform}
+                    <span className="font-medium">Platform:</span> {validationResults.summaryData?.platform || 'N/A'}
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Discrepancies */}
-            {validationResults.discrepancies.length > 0 && (
+            {validationResults.discrepancies && validationResults.discrepancies.length > 0 && (
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Discrepancies Found</h4>
                 <div className="space-y-3">
-                  {validationResults.discrepancies.map((discrepancy: any) => formatDiscrepancy(discrepancy))}
+                  {validationResults.discrepancies.map((discrepancy, index) => (
+                    <div key={index}>{formatDiscrepancy(discrepancy)}</div>
+                  ))}
                 </div>
               </div>
             )}
