@@ -9,7 +9,7 @@ export default function WeeklySummaryUpload() {
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [weekPeriod, setWeekPeriod] = useState('');
-  const [validationResults, setValidationResults] = useState<any>(null);
+  const [validationResults, setValidationResults] = useState<Record<string, unknown> | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();

@@ -4,7 +4,7 @@ import FileUpload from '@/components/FileUpload';
 import ProcessingResults from '@/components/ProcessingResults';
 import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+
 import { useState } from 'react';
 
 interface UploadedFile {
@@ -19,7 +19,6 @@ interface UploadedFile {
 }
 
 export default function UploadPage() {
-  const router = useRouter();
   const [driverId] = useState('550e8400-e29b-41d4-a716-446655440000'); // Mock driver ID
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -70,10 +69,10 @@ export default function UploadPage() {
           // For mobile: try multiple redirect methods
           try {
             window.location.replace('/');
-          } catch (e) {
+          } catch {
             try {
               window.location.assign('/');
-            } catch (e2) {
+            } catch {
               window.location.href = '/';
             }
           }

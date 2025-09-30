@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 interface MaintenanceRecord {
   id: number;
@@ -42,8 +42,8 @@ export default function VehicleMaintenance() {
   const [alerts, setAlerts] = useState<VehicleAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<{
-    maintenance?: any;
-    fuel?: any;
+    maintenance?: Record<string, unknown>;
+    fuel?: Record<string, unknown>;
   }>({});
 
   // Form states
@@ -52,11 +52,7 @@ export default function VehicleMaintenance() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
-
-  const fetchAllData = async () => {
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       await Promise.all([
@@ -69,7 +65,11 @@ export default function VehicleMaintenance() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   const fetchMaintenanceRecords = async () => {
     try {
@@ -204,16 +204,26 @@ export default function VehicleMaintenance() {
     }
   };
 
-  const calculateNetProfit = () => {
+  const calculateNetProfit = (): {
+    totalFuelCost: number;
+    totalMaintenanceCost: number;
+    totalOperatingCosts: number;
+    avgCostPerRecord: number;
+    currentMPG: number;
+    totalRecords: number;
+  } | null => {
     if (!stats?.fuel || !stats?.maintenance) return null;
 
-    const totalFuelCost = stats.fuel.total_cost;
-    const totalMaintenanceCost = stats.maintenance.total_cost;
-    const currentMPG = stats.fuel.current_mpg;
+    const fuelStats = stats.fuel as { total_cost: number; current_mpg: number; total_records: number };
+    const maintenanceStats = stats.maintenance as { total_cost: number; total_records: number };
+
+    const totalFuelCost = fuelStats.total_cost || 0;
+    const totalMaintenanceCost = maintenanceStats.total_cost || 0;
+    const currentMPG = fuelStats.current_mpg || 0;
     const totalOperatingCosts = totalFuelCost + totalMaintenanceCost;
 
     // Instead of fake profit, show cost per mile analysis
-    const totalRecords = (stats.fuel.total_records || 0) + (stats.maintenance.total_records || 0);
+    const totalRecords = (fuelStats.total_records || 0) + (maintenanceStats.total_records || 0);
     const avgCostPerRecord = totalRecords > 0 ? totalOperatingCosts / totalRecords : 0;
 
     return { 
@@ -298,7 +308,7 @@ export default function VehicleMaintenance() {
             ].map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key as any)}
+                onClick={() => setActiveTab(tab.key as 'overview' | 'maintenance' | 'fuel' | 'alerts')}
                 className={`py-2 px-4 border-b-2 font-medium text-sm ${
                   activeTab === tab.key
                     ? 'border-blue-500 text-blue-600'

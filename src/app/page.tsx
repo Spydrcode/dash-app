@@ -4,7 +4,7 @@ import AIInsightsDashboard from "@/components/AIInsightsDashboard";
 import NotificationSystem from "@/components/NotificationSystem";
 import { InsightUpdateManager } from "@/lib/insight-update-manager";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 interface DashboardStats {
   totalTrips: number;
@@ -37,11 +37,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  useEffect(() => {
-    fetchStats();
-  }, [refreshTrigger]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await fetch('/api/dashboard-stats');
       const data = await response.json();
@@ -61,7 +57,11 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [stats]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [refreshTrigger, fetchStats]);
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
