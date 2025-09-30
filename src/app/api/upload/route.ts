@@ -108,9 +108,14 @@ export async function POST(request: NextRequest) {
         console.log(`Processing uploaded file: ${uploadedFile.filename}`);
 
         // Call the process-trip API to extract trip data
+        const requestUrl = new URL(request.url);
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
+          `${requestUrl.protocol}//${requestUrl.host}`;
+        
+        console.log(`Processing trip with baseUrl: ${baseUrl}`);
+        
         const processResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_SITE_URL ||
-            "http://localhost:3000"}/api/process-trip`,
+          `${baseUrl}/api/process-trip`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },

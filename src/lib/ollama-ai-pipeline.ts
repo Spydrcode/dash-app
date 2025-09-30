@@ -407,7 +407,7 @@ Provide training insights in JSON format:
 
   private parseTrainingResponse(response: string, compiledTrips: CompiledTripData[]): TrainingData {
     try {
-      const jsonMatch = response.match(/\{[^]*\}/s);
+      const jsonMatch = response.match(/\{[\s\S]*?\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
         return {
@@ -538,7 +538,7 @@ Generate insights in JSON format:
 
   private parseInsightsResponse(response: string, trainingData: TrainingData, compiledTrips: CompiledTripData[]) {
     try {
-      const jsonMatch = response.match(/\{[^]*\}/s);
+      const jsonMatch = response.match(/\{[\s\S]*?\}/);
       if (jsonMatch) {
         const insights = JSON.parse(jsonMatch[0]);
         return {

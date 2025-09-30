@@ -14,6 +14,8 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: [],
+  // Allow ngrok tunnel requests in development
+  allowedDevOrigins: ['specialistic-annabella-unsabled.ngrok-free.dev'],
   // Development server configuration for ngrok
   async headers() {
     return [

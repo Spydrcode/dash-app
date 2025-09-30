@@ -1,17 +1,31 @@
 // Fixed Multi-Stage AI System for Accurate Data Extraction
 // This addresses the core issue: Wrong AI insights due to poor data extraction
 
-import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+// Environment validation
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing Supabase configuration');
+}
+
+const supabaseAdmin = createClient(supabaseUrl!, supabaseKey!);
 
 // Multi-Stage Pipeline to fix data accuracy issues
 export async function POST(request: NextRequest) {
   try {
     console.log('🔧 FIXING DATA EXTRACTION PIPELINE...');
+    
+    // Environment check
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ 
+        error: 'Missing Supabase configuration',
+        details: 'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+      }, { status: 500 });
+    }
     
     // Step 1: Get all screenshots and check their current data
     const { data: screenshots, error: screenshotsError } = await supabaseAdmin
@@ -19,8 +33,20 @@ export async function POST(request: NextRequest) {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (screenshotsError || !screenshots) {
-      return NextResponse.json({ error: 'Failed to fetch screenshots' }, { status: 500 });
+    if (screenshotsError) {
+      console.error('Database error:', screenshotsError);
+      return NextResponse.json({ 
+        error: 'Failed to fetch screenshots', 
+        details: screenshotsError.message 
+      }, { status: 500 });
+    }
+
+    if (!screenshots || screenshots.length === 0) {
+      return NextResponse.json({ 
+        success: true,
+        message: 'No screenshots found to process',
+        screenshots_found: 0
+      });
     }
 
     console.log(`📸 Found ${screenshots.length} total screenshots in database`);
@@ -65,10 +91,10 @@ export async function POST(request: NextRequest) {
 
     for (const screenshot of needsProcessing.slice(0, 10)) { // Process first 10 for testing
       try {
-        console.log(`👁️ Processing screenshot ${screenshot.id} with LLaVA...`);
+        console.log(`👁️ Processing screenshot ${screenshot.id} with GPT-4V...`);
         
-        // Use LLaVA to extract data
-        const extractedData = await this.extractWithLLaVA(screenshot);
+        // Use GPT-4V to extract data
+        const extractedData = await extractWithGPTVision(screenshot);
         
         if (extractedData && extractedData.driver_earnings) {
           // Update screenshot with extracted data
@@ -78,8 +104,8 @@ export async function POST(request: NextRequest) {
               extracted_data: extractedData,
               ocr_data: {
                 extraction_quality: 'HIGH',
-                confidence: 85,
-                model_used: 'llava:latest',
+                confidence: 90,
+                model_used: 'gpt-4o',
                 processed_at: new Date().toISOString()
               },
               is_processed: true,
@@ -100,10 +126,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 5: Analyze and compile all extracted data
-    const compiledData = await this.compileAllData();
+    const compiledData = await compileAllData();
 
     // Step 6: Generate corrected insights using DeepSeek-R1
-    const correctedInsights = await this.generateCorrectedInsights(compiledData);
+    const correctedInsights = await generateCorrectedInsights(compiledData);
 
     console.log('✅ MULTI-STAGE PIPELINE COMPLETE!');
 
@@ -122,8 +148,8 @@ export async function POST(request: NextRequest) {
       },
       fix_summary: {
         issue: 'AI insights showed wrong trip count due to poor OCR extraction',
-        solution: 'Multi-stage LLaVA OCR → DeepSeek compilation → Corrected insights',
-        improvement: `Extracted data from ${successfulExtractions} screenshots with proper OCR`
+        solution: 'Multi-stage GPT-4V OCR → GPT-4o compilation → Corrected insights',
+        improvement: `Extracted data from ${successfulExtractions} screenshots with ChatGPT vision`
       },
       recommendations: [
         'Run this pipeline on all screenshots for complete data accuracy',
@@ -139,9 +165,10 @@ export async function POST(request: NextRequest) {
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 });
   }
+}
 
-  // Helper method to extract data with LLaVA
-  async extractWithLLaVA(screenshot: any) {
+// Helper function to extract data with GPT-4V
+async function extractWithGPTVision(screenshot: any) {
     try {
       const prompt = `Extract rideshare data from this ${screenshot.screenshot_type} screenshot.
 Return only the JSON data:
@@ -182,10 +209,10 @@ Return only the JSON data:
       console.error('LLaVA extraction failed:', error);
       return null;
     }
-  }
+}
 
-  // Compile all extracted data
-  async compileAllData() {
+// Compile all extracted data
+async function compileAllData() {
     try {
       const { data: allScreenshots } = await supabaseAdmin
         .from('trip_screenshots')
@@ -234,10 +261,10 @@ Return only the JSON data:
       console.error('Data compilation failed:', error);
       return { error: 'Compilation failed' };
     }
-  }
+}
 
-  // Generate corrected insights with DeepSeek-R1
-  async generateCorrectedInsights(compiledData: any) {
+// Generate corrected insights with DeepSeek-R1
+async function generateCorrectedInsights(compiledData: any) {
     try {
       const insightsPrompt = `Based on this accurately extracted rideshare data, provide realistic insights:
 
@@ -269,16 +296,31 @@ Return concise, accurate insights.`;
       console.error('Insights generation failed:', error);
       return { error: 'Insights generation failed' };
     }
-  }
 }
 
 // Check pipeline status
 export async function GET(request: NextRequest) {
   try {
+    // Environment check
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ 
+        error: 'Missing Supabase configuration',
+        details: 'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+      }, { status: 500 });
+    }
+
     // Check screenshot processing status
-    const { data: screenshots } = await supabaseAdmin
+    const { data: screenshots, error } = await supabaseAdmin
       .from('trip_screenshots')
       .select('id, is_processed, extracted_data, screenshot_type');
+
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch screenshots', 
+        details: error.message 
+      }, { status: 500 });
+    }
 
     const total = screenshots?.length || 0;
     const processed = screenshots?.filter(s => s.is_processed).length || 0;
@@ -299,10 +341,10 @@ export async function GET(request: NextRequest) {
         'AI insights may be inaccurate due to poor data extraction'
       ].filter(Boolean),
       pipeline_stages: [
-        '1. OCR Extraction: Process screenshots with LLaVA to extract proper data',
+        '1. OCR Extraction: Process screenshots with GPT-4V to extract proper data',
         '2. Data Validation: Ensure extracted data has earnings, trips, distance',
         '3. Data Compilation: Aggregate all extractions into coherent dataset',
-        '4. Insights Generation: Use DeepSeek-R1 to generate accurate insights'
+        '4. Insights Generation: Use GPT-4o to generate accurate insights'
       ],
       recommendation: withData < 5 ? 
         'Run POST /api/fix-data-pipeline to extract proper data from screenshots' :

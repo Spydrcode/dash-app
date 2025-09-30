@@ -5,8 +5,7 @@ const testGPTIntegration = async () => {
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error("❌ OPENAI_API_KEY environment variable is required");
-      return;
+      throw new Error('OPENAI_API_KEY environment variable is required');
     }
 
     // Test OpenAI API connectivity
