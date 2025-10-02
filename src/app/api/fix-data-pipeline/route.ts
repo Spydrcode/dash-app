@@ -8,8 +8,8 @@ import { NextResponse } from 'next/server';
 export async function POST() {
   try {
     // Initialize Supabase client inside the function to avoid build-time errors
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     console.log('🔧 FIXING DATA EXTRACTION PIPELINE...');
@@ -278,8 +278,8 @@ async function generateCorrectedInsights(compiledData: Record<string, unknown>) 
 export async function GET() {
   try {
     // Initialize Supabase client inside the function to avoid build-time errors
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     // Check screenshot processing status

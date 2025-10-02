@@ -3,13 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { AITrainingSystem } from '../../../lib/ai-training-system';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Initialize Supabase client conditionally to avoid build errors
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
     const { action } = await request.json();
     
     if (action !== 'auto_train') {
@@ -126,6 +130,10 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
     // Get training status and statistics
     const { searchParams } = new URL(request.url);
     const includeDetails = searchParams.get('details') === 'true';
