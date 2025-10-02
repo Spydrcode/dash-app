@@ -89,10 +89,10 @@ async function setupEnhancedDatabase() {
         console.log(`✅ Bucket '${bucket.name}' already exists`);
       } else {
         console.log(`Creating bucket: ${bucket.name}`);
-        const {
-          data: createData,
-          error: createError,
-        } = await supabase.storage.createBucket(bucket.name, bucket.config);
+        const { error: createError } = await supabase.storage.createBucket(
+          bucket.name,
+          bucket.config
+        );
 
         if (createError) {
           console.error(
@@ -109,7 +109,7 @@ async function setupEnhancedDatabase() {
     console.log("\n🔍 Checking enhanced database schema...");
 
     // Check if trip_screenshots table exists
-    const { data: screenshots, error: screenshotsError } = await supabase
+    const { error: screenshotsError } = await supabase
       .from("trip_screenshots")
       .select("*")
       .limit(1);
@@ -131,7 +131,7 @@ async function setupEnhancedDatabase() {
     }
 
     // Check enhanced trips table columns
-    const { data: trips, error: tripsError } = await supabase
+    const { error: tripsError } = await supabase
       .from("trips")
       .select(
         "id, initial_estimate, final_total, trip_status, screenshot_count"

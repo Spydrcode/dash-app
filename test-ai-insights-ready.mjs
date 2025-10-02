@@ -1,6 +1,7 @@
 // Test All AI Insights After Database Setup
-require("dotenv").config({ path: ".env.local" });
-const { createClient } = require("@supabase/supabase-js");
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,7 +35,7 @@ async function testAIInsightsSystem() {
         } else {
           console.log("❌", table, "missing");
         }
-      } catch (e) {
+      } catch {
         console.log("❌", table, "error");
       }
     }
@@ -48,7 +49,7 @@ async function testAIInsightsSystem() {
 
     // Test 2: Check existing trip data
     console.log("\n📊 Checking existing trip data...");
-    const { data: trips, count } = await supabase
+    const { count } = await supabase
       .from("trips")
       .select("*", { count: "exact" })
       .limit(5);

@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get all trips with enhanced data
     const { data: trips, error: tripsError } = await supabaseAdmin
@@ -23,19 +23,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Get weekly validation sessions count
-    const { data: weeklySessions, error: sessionsError } = await supabaseAdmin
+      const { data: sessions } = await supabaseAdmin
       .from('reanalysis_sessions')
       .select('id, analysis_type, results')
       .eq('analysis_type', 'weekly');
     
-    const weeklyValidationsCount = weeklySessions?.length || 0;
+    const weeklyValidationsCount = sessions?.length || 0;
 
     // Calculate real stats from actual data
     const totalTrips = trips?.length || 0;
     
     // Extract real values from trip data or trip_data field
-    const extractValue = (trip: any, field: string, fallback: number = 0) => {
-      return (trip.trip_data?.[field] ?? trip[field] ?? fallback);
+    const extractValue = (trip: Record<string, unknown>, field: string, fallback: number = 0) => {
+      const tripData = trip.trip_data as Record<string, unknown> | undefined;
+      const tripField = (trip as Record<string, unknown>)[field];
+      return typeof tripData?.[field] === 'number' ? tripData[field] : 
+             typeof tripField === 'number' ? tripField : fallback;
     };
 
     let totalEarnings = 0;
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
       // Count screenshots
       if (trip.trip_screenshots) {
         totalScreenshots += trip.trip_screenshots.length;
-        trip.trip_screenshots.forEach((screenshot: any) => {
+        trip.trip_screenshots.forEach((screenshot: { screenshot_type: string; is_processed?: boolean }) => {
           if (screenshot.is_processed) processedScreenshots++;
           if (screenshotTypes.hasOwnProperty(screenshot.screenshot_type)) {
             screenshotTypes[screenshot.screenshot_type as keyof typeof screenshotTypes]++;

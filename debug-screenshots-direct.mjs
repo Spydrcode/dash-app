@@ -1,6 +1,5 @@
 // Direct database query to debug screenshot processing status
-const { createClient } = require("@supabase/supabase-js");
-const fetch = require("node-fetch");
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = "https://ypydqbnohcqvbkrwlfls.supabase.co";
 const supabaseKey =

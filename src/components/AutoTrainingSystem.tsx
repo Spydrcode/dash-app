@@ -31,6 +31,7 @@ export default function AutoTrainingSystem() {
   // Load training assessment on component mount
   useEffect(() => {
     loadTrainingAssessment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadTrainingAssessment = async () => {
@@ -115,7 +116,7 @@ export default function AutoTrainingSystem() {
           🤖 Auto-Training System
         </h1>
         <p className="text-gray-600">
-          Automatically train your AI agents using the data you've already uploaded. 
+          Automatically train your AI agents using the data you&apos;ve already uploaded. 
           No manual corrections needed!
         </p>
       </div>

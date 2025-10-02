@@ -1,27 +1,36 @@
 // Adaptive AI Insight Agents - Learn from your actual data patterns
 import { AITrainingSystem } from './ai-training-system';
-import { RIDESHARE_VALIDATION_RULES, TripDataValidator } from './data-validator';
+import { RIDESHARE_VALIDATION_RULES, TripDataValidator, type ValidationRules } from './data-validator';
 
 export interface TripScreenshotData {
   id: string;
   screenshot_type: 'initial_offer' | 'final_total' | 'dashboard' | 'map';
-  ocr_data: any;
-  extracted_data: any;
+  ocr_data: Record<string, unknown>;
+  extracted_data: Record<string, unknown>;
   trip_id: string;
   upload_timestamp: string;
+}
+
+interface TripDataContent {
+  trip_date?: string;
+  profit?: string | number;
+  driver_earnings?: string | number;
+  total_trips?: string | number;
+  distance?: string | number;
+  [key: string]: unknown;
 }
 
 export interface TripData {
   id: string;
   driver_id?: string;
-  trip_data: any;
+  trip_data?: TripDataContent;
   trip_screenshots?: TripScreenshotData[];
   created_at: string;
   upload_date?: string;
   total_profit?: number;
   total_distance?: number;
   vehicle_model?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Initialize adaptive training system
@@ -32,7 +41,7 @@ let adaptiveValidator: TripDataValidator;
 export class AdaptiveAIInsightsCoordinator {
   private static validationRules = RIDESHARE_VALIDATION_RULES;
 
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, options: any) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string) {
     console.log(`🧠 Adaptive AI: Analyzing ${trips.length} records and learning from your patterns`);
     
     if (trips.length === 0) {
@@ -40,12 +49,12 @@ export class AdaptiveAIInsightsCoordinator {
     }
 
     // STEP 0: AUTO-TRAIN from existing uploaded data
-    const trainingResult = await aiTrainer.autoTrainFromExistingData(trips);
+    const trainingResult = await aiTrainer.autoTrainFromExistingData(trips as Record<string, unknown>[]);
     console.log(`🤖 Auto-training: ${trainingResult.patternsLearned} patterns learned, ${trainingResult.rulesAdapted} rules adapted`);
 
     // STEP 1: Learn from your actual data patterns (now enhanced with auto-training)
     const adaptedRules = aiTrainer.adaptValidationRules(trips);
-    adaptiveValidator = new TripDataValidator(adaptedRules);
+    adaptiveValidator = new TripDataValidator(adaptedRules as unknown as ValidationRules);
     
     // STEP 2: Validate with YOUR learned patterns (not generic rules)
     const validationResult = adaptiveValidator.cleanTripDataset(trips);
@@ -58,7 +67,7 @@ export class AdaptiveAIInsightsCoordinator {
 
     // STEP 4: Calculate with adaptive performance metrics
     const realTotals = this.calculateAdaptiveTotals(uniqueTrips);
-    const personalizedBenchmarks = aiTrainer.generatePersonalizedBenchmarks(uniqueTrips);
+    const personalizedBenchmarks = aiTrainer.generatePersonalizedBenchmarks(uniqueTrips as Record<string, unknown>[]);
     
     // STEP 5: Generate personalized performance score
     const performanceScore = this.calculatePersonalizedPerformanceScore(
@@ -90,7 +99,7 @@ export class AdaptiveAIInsightsCoordinator {
       personalized_benchmarks: personalizedBenchmarks,
       adaptive_insights: personalizedInsights,
       honda_odyssey: {
-        actual_mpg: this.calculateActualMPG(realTotals.distance, realTotals.activeDays),
+        actual_mpg: this.calculateActualMPG(),
         rated_mpg: 19,
         efficiency_rating: 'Based on YOUR actual driving patterns',
         total_fuel_cost: (realTotals.distance * 0.18) || 0,
@@ -126,7 +135,7 @@ export class AdaptiveAIInsightsCoordinator {
     const uniqueTrips: TripData[] = [];
     
     trips.forEach(trip => {
-      const tripDate = trip.trip_data?.trip_date;
+      const tripDate = trip.trip_data?.trip_date as string;
       
       if (!seenDates.has(tripDate) && tripDate) {
         seenDates.add(tripDate);
@@ -153,14 +162,14 @@ export class AdaptiveAIInsightsCoordinator {
       );
       
       // Prefer improved extraction if confidence is higher
-      const useImproved = extractedData.extraction_confidence > 0.7;
+      const useImproved = (extractedData.extraction_confidence as number) > 0.7;
       const sourceData = useImproved ? extractedData : trip.trip_data;
       if (useImproved) improvedExtractions++;
       
-      const profit = parseFloat(sourceData.profit || trip.trip_data?.profit || trip.total_profit || 0);
-      const earnings = parseFloat(sourceData.driver_earnings || trip.trip_data?.driver_earnings || 0);
-      const tripCount = parseInt(sourceData.total_trips || trip.trip_data?.total_trips || 1);
-      const distance = parseFloat(sourceData.distance || trip.trip_data?.distance || trip.total_distance || 0);
+      const profit = parseFloat(String((sourceData as Record<string, unknown>)?.profit || trip.trip_data?.profit || trip.total_profit || 0));
+      const earnings = parseFloat(String((sourceData as Record<string, unknown>)?.driver_earnings || trip.trip_data?.driver_earnings || 0));
+      const tripCount = parseInt(String((sourceData as Record<string, unknown>)?.total_trips || trip.trip_data?.total_trips || 1));
+      const distance = parseFloat(String((sourceData as Record<string, unknown>)?.distance || trip.trip_data?.distance || trip.total_distance || 0));
       
       totalRealProfit += profit;
       totalRealEarnings += earnings;
@@ -182,11 +191,11 @@ export class AdaptiveAIInsightsCoordinator {
 
   // Calculate performance score based on YOUR personal benchmarks
   private static calculatePersonalizedPerformanceScore(
-    totals: any, 
-    benchmarks: any
+    totals: Record<string, number>, 
+    benchmarks: Record<string, number>
   ): { score: number; category: string; explanation: string } {
     const avgProfitPerTrip = totals.trips > 0 ? totals.profit / totals.trips : 0;
-    const dailyProfit = totals.profit / totals.activeDays;
+    // const dailyProfit = totals.profit / totals.activeDays;
     
     // Score based on YOUR performance quartiles
     let score = 0;
@@ -215,7 +224,7 @@ export class AdaptiveAIInsightsCoordinator {
   }
 
   // Generate insights based on YOUR patterns
-  private static generatePersonalizedInsights(totals: any, benchmarks: any): string[] {
+  private static generatePersonalizedInsights(totals: Record<string, number>, benchmarks: Record<string, number>): string[] {
     const insights = [];
     const avgProfitPerTrip = totals.trips > 0 ? totals.profit / totals.trips : 0;
     const avgTripsPerDay = totals.trips / totals.activeDays;
@@ -244,10 +253,10 @@ export class AdaptiveAIInsightsCoordinator {
   }
 
   // Calculate actual MPG based on your driving
-  private static calculateActualMPG(totalMiles: number, activeDays: number): number {
+  private static calculateActualMPG(): number {
     // Estimate fuel used based on Honda Odyssey specs and your driving
-    const avgMilesPerDay = totalMiles / activeDays;
-    const estimatedGallonsPerDay = avgMilesPerDay / 19; // EPA rating
+    // const avgMilesPerDay = totalMiles / activeDays;
+    // const estimatedGallonsPerDay = avgMilesPerDay / 19; // EPA rating
     
     // Account for city driving (rideshare typically gets lower MPG)
     const cityDrivingFactor = 0.85; // 15% lower than highway
@@ -258,7 +267,7 @@ export class AdaptiveAIInsightsCoordinator {
 
   // Compare fuel efficiency to EPA ratings
   private static compareFuelEfficiency(totalMiles: number, activeDays: number): string {
-    const actualMPG = this.calculateActualMPG(totalMiles, activeDays);
+    const actualMPG = this.calculateActualMPG();
     const ratedMPG = 19;
     
     const efficiency = (actualMPG / ratedMPG) * 100;
@@ -273,21 +282,21 @@ export class AdaptiveAIInsightsCoordinator {
   }
 
   // Generate recommendations based on learned patterns
-  private static generateAdaptiveRecommendations(totals: any, benchmarks: any): string[] {
+  private static generateAdaptiveRecommendations(totals: Record<string, unknown>, benchmarks: Record<string, unknown>): string[] {
     const recommendations = [];
-    const avgProfitPerTrip = totals.trips > 0 ? totals.profit / totals.trips : 0;
-    const avgDailyProfit = totals.profit / totals.activeDays;
+    const avgProfitPerTrip = (totals.trips as number) > 0 ? (totals.profit as number) / (totals.trips as number) : 0;
+    const avgDailyProfit = (totals.profit as number) / (totals.activeDays as number);
     
-    if (avgProfitPerTrip < benchmarks.targetEarningsPerTrip) {
-      recommendations.push(`Target higher-paying trips: Your current $${avgProfitPerTrip.toFixed(2)} per trip is below your $${benchmarks.targetEarningsPerTrip.toFixed(2)} potential`);
+    if (avgProfitPerTrip < (benchmarks.targetEarningsPerTrip as number)) {
+      recommendations.push(`Target higher-paying trips: Your current $${avgProfitPerTrip.toFixed(2)} per trip is below your $${(benchmarks.targetEarningsPerTrip as number).toFixed(2)} potential`);
     }
     
-    if (avgDailyProfit < benchmarks.targetEarningsPerTrip * benchmarks.targetTripsPerDay) {
-      const targetDailyProfit = benchmarks.targetEarningsPerTrip * benchmarks.targetTripsPerDay;
+    if (avgDailyProfit < (benchmarks.targetEarningsPerTrip as number) * (benchmarks.targetTripsPerDay as number)) {
+      const targetDailyProfit = (benchmarks.targetEarningsPerTrip as number) * (benchmarks.targetTripsPerDay as number);
       recommendations.push(`Increase daily volume: Target $${targetDailyProfit.toFixed(2)}/day vs current $${avgDailyProfit.toFixed(2)}/day`);
     }
     
-    const fuelCostRatio = (totals.distance * 0.18) / totals.earnings;
+    const fuelCostRatio = ((totals.distance as number) * 0.18) / (totals.earnings as number);
     if (fuelCostRatio > 0.15) {
       recommendations.push(`Reduce fuel costs: Currently ${(fuelCostRatio * 100).toFixed(1)}% of earnings, target under 15%`);
     }
@@ -301,7 +310,7 @@ export class KeyInsightsAgent {
   static async generateInsights(trips: TripData[]): Promise<string[]> {
     if (trips.length === 0) return ['No trip data available'];
     
-    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, 'recent', {});
+    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, 'recent');
     return insights.adaptive_insights || ['Generating personalized insights...'];
   }
 }
@@ -310,14 +319,14 @@ export class ProjectionsAgent {
   static async generateProjections(trips: TripData[], timeframe: string) {
     if (trips.length === 0) return { daily_projection: { avg_profit: 0, avg_trips: 0 } };
     
-    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, timeframe, {});
+    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, timeframe);
     return insights.projections || { daily_projection: { avg_profit: 0, avg_trips: 0 } };
   }
 }
 
 export class TrendsAgent {
   static async analyzeTrends(trips: TripData[], timeframe: string) {
-    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, timeframe, {});
+    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, timeframe);
     
     return {
       trend: 'Adaptive trend analysis based on your personal patterns',
@@ -330,7 +339,7 @@ export class TrendsAgent {
 
 export class VehicleEfficiencyAgent {
   static async analyzeHondaOdyssey(trips: TripData[]) {
-    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, 'all', {});
+    const insights = await AdaptiveAIInsightsCoordinator.generateCompleteInsights(trips, 'all');
     return insights.honda_odyssey || {
       actual_mpg: 19.0,
       rated_mpg: 19,
@@ -356,12 +365,12 @@ export class AdaptiveTimeAnalysisAgent {
     const dailyGroups: Record<string, { profit: number; trips: number; earnings: number }> = {};
     
     trips.forEach(trip => {
-      const tripDate = trip.trip_data?.trip_date;
+      const tripDate = trip.trip_data?.trip_date as string;
       if (!tripDate) return;
       
-      const profit = parseFloat(trip.trip_data?.profit || trip.total_profit || 0);
-      const earnings = parseFloat(trip.trip_data?.driver_earnings || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
+      const profit = parseFloat(String(trip.trip_data?.profit || trip.total_profit || 0));
+      const earnings = parseFloat(String(trip.trip_data?.driver_earnings || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
       
       if (!dailyGroups[tripDate]) {
         dailyGroups[tripDate] = { profit, trips: tripCount, earnings };
@@ -404,3 +413,4 @@ export class AdaptiveTimeAnalysisAgent {
 
 // Export main coordinator
 export { AdaptiveAIInsightsCoordinator as AIInsightsCoordinator };
+

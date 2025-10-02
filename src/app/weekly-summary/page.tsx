@@ -145,10 +145,10 @@ export default function WeeklySummaryUpload() {
             setTimeout(() => {
               try {
                 router.replace('/');
-              } catch (error) {
+              } catch {
                 try {
                   window.location.assign('/');
-                } catch (fallback) {
+                } catch {
                   window.location.href = '/';
                 }
               }
@@ -170,7 +170,12 @@ export default function WeeklySummaryUpload() {
     }
   };
 
-  const formatDiscrepancy = (discrepancy: any) => {
+  const formatDiscrepancy = (discrepancy: {
+    type: string;
+    severity: 'high' | 'medium' | 'low';
+    description: string;
+    recommendation: string;
+  }) => {
     const severityColor = discrepancy.severity === 'high' ? 'text-red-600' : 
                          discrepancy.severity === 'medium' ? 'text-yellow-600' : 'text-blue-600';
     

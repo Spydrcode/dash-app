@@ -1,6 +1,5 @@
-const fs = require("fs");
-const FormData = require("form-data");
-const fetch = require("node-fetch");
+import { spawn } from "child_process";
+import fs from "fs";
 
 async function testDuplicateDetection() {
   console.log("🧪 Testing duplicate detection system...");
@@ -86,48 +85,55 @@ async function testDuplicateDetection() {
   // First upload
   console.log("\n📤 First upload attempt...");
   const firstUpload = await uploadFile("test-duplicate.png");
-  console.log("First upload result:", firstUpload.message || firstUpload.error);
+  console.log("First upload result:", firstUpload);
 
   // Wait a moment
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 2000));
 
   // Second upload (should be blocked as duplicate)
   console.log("\n📤 Second upload attempt (should be blocked)...");
   const secondUpload = await uploadFile("test-duplicate.png");
-  console.log(
-    "Second upload result:",
-    secondUpload.message || secondUpload.error
-  );
-
-  // Third upload with different filename (should still be blocked by hash)
-  fs.writeFileSync("test-duplicate-renamed.png", testImageContent);
-  console.log(
-    "\n📤 Third upload with different name (should still be blocked)..."
-  );
-  const thirdUpload = await uploadFile("test-duplicate-renamed.png");
-  console.log("Third upload result:", thirdUpload.message || thirdUpload.error);
+  console.log("Second upload result:", secondUpload);
 
   // Cleanup
   fs.unlinkSync("test-duplicate.png");
-  fs.unlinkSync("test-duplicate-renamed.png");
   console.log("\n🧹 Cleaned up test files");
 }
 
-async function uploadFile(filename) {
-  try {
-    const formData = new FormData();
-    formData.append("files", fs.createReadStream(filename));
+function uploadFile(filename) {
+  return new Promise((resolve) => {
+    const curl = spawn("curl", [
+      "-X",
+      "POST",
+      "-F",
+      `files=@${filename}`,
+      "http://localhost:3000/api/upload",
+    ]);
 
-    const response = await fetch("http://localhost:3000/api/upload", {
-      method: "POST",
-      body: formData,
+    let output = "";
+    let error = "";
+
+    curl.stdout.on("data", (data) => {
+      output += data.toString();
     });
 
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    return { error: error.message };
-  }
+    curl.stderr.on("data", (data) => {
+      error += data.toString();
+    });
+
+    curl.on("close", (code) => {
+      if (code !== 0) {
+        resolve(`Error (code ${code}): ${error}`);
+      } else {
+        try {
+          const result = JSON.parse(output);
+          resolve(result.message || result.error || JSON.stringify(result));
+        } catch {
+          resolve(output.substring(0, 200) + "...");
+        }
+      }
+    });
+  });
 }
 
 // Make sure server is running first

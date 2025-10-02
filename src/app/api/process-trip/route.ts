@@ -17,7 +17,7 @@ class EnhancedMCPAgent {
     success: boolean;
     tripData?: TripData;
     screenshotData?: TripScreenshot;
-    analytics?: Record<string, any>;
+    analytics?: Record<string, unknown>;
     recommendations?: string[];
     error?: string;
   }> {
@@ -29,7 +29,7 @@ class EnhancedMCPAgent {
       console.log('OCR extracted:', ocrResult.text.substring(0, 200) + '...');
       
       // Step 2: Use REAL OCR data (no fallbacks!)
-      const tripData = this.processRealOCRData(ocrResult, screenshotType);
+      const tripData = this.processRealOCRData(ocrResult);
       console.log('Using REAL OCR data:', tripData);
       
       // Step 3: Save to enhanced database schema
@@ -62,47 +62,43 @@ class EnhancedMCPAgent {
       const imageBuffer = await response.arrayBuffer();
       const base64Image = Buffer.from(imageBuffer).toString('base64');
       
-      // Smart OCR - detect what type of image this is
-      const detectResponse = await fetch('http://localhost:11434/api/generate', {
+      // Smart OCR - Use GPT-4V for image analysis and text extraction
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
         body: JSON.stringify({
-          model: 'llava',
-          prompt: 'What type of image is this? Answer: dashboard, rideshare_receipt, or rideshare_offer',
-          images: [base64Image],
-          stream: false,
-          options: { temperature: 0, num_predict: 50 }
+          model: 'gpt-4o',
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Analyze this rideshare screenshot and extract all relevant data. Identify if it is: dashboard, rideshare_receipt, or rideshare_offer. Then extract numbers for fare, tips, distance, time, etc. Return as structured text with clear labels.'
+              },
+              {
+                type: 'image_url',
+                image_url: {
+                  url: `data:image/jpeg;base64,${base64Image}`
+                }
+              }
+            ]
+          }],
+          max_tokens: 300,
+          temperature: 0
         })
       });
       
-      const detectResult = await detectResponse.json() as any;
-      const imageType = detectResult.response?.toLowerCase() || 'unknown';
-      
-      // Targeted OCR based on detected type
-      let targetedPrompt: string;
-      if (imageType.includes('dashboard')) {
-        targetedPrompt = 'Extract only the odometer mileage reading from this dashboard. Return just the number.';
-      } else if (imageType.includes('offer')) {
-        targetedPrompt = 'Extract initial offer: estimated fare, distance, time. Return as: Fare: $X.XX, Distance: X.X miles, Time: XX minutes';
-      } else {
-        targetedPrompt = 'Extract rideshare receipt data: fare amount, tip amount, distance, time. Return as: Fare: $X.XX, Tip: $X.XX, Distance: X.X miles, Time: XX minutes';
+      if (!openaiResponse.ok) {
+        throw new Error(`GPT-4V API error: ${openaiResponse.status} ${openaiResponse.statusText}`);
       }
       
-      // Perform targeted extraction
-      const ocrResponse = await fetch('http://localhost:11434/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'llava',
-          prompt: targetedPrompt,
-          images: [base64Image],
-          stream: false,
-          options: { temperature: 0, num_predict: 200 }
-        })
-      });
-      
-      const ocrResult = await ocrResponse.json() as any;
-      const extractedText = ocrResult.response || '';
+      const gptResult = await openaiResponse.json();
+      const extractedText = gptResult.choices?.[0]?.message?.content || '';
+      const imageType = extractedText.toLowerCase().includes('dashboard') ? 'dashboard' :
+                       extractedText.toLowerCase().includes('offer') ? 'offer' : 'receipt';
       
       // Extract all numbers from the text
       const numbers = extractedText.match(/\d+\.?\d*/g) || [];
@@ -116,7 +112,7 @@ class EnhancedMCPAgent {
         numbers
       };
       
-    } catch (error) {
+    } catch {
       console.log('OCR failed, analyzing image path for type detection');
       // Fallback: try to detect from filename patterns
       return {
@@ -127,7 +123,7 @@ class EnhancedMCPAgent {
     }
   }
 
-  private processRealOCRData(ocrResult: {text: string, imageType: string, numbers: string[]}, screenshotType?: string): TripData {
+  private processRealOCRData(ocrResult: {text: string, imageType: string, numbers: string[]}): TripData {
     const { text, imageType, numbers } = ocrResult;
     
     console.log('Processing REAL OCR data - Type:', imageType, 'Numbers:', numbers);
@@ -136,7 +132,6 @@ class EnhancedMCPAgent {
     const fareAmount = parseFloat(numbers[0] || '0');
     const secondNumber = parseFloat(numbers[1] || '0');  
     const thirdNumber = parseFloat(numbers[2] || '0');
-    const fourthNumber = parseFloat(numbers[3] || '0');
     
     if (imageType === 'dashboard') {
       // Dashboard - only care about odometer reading
@@ -303,7 +298,7 @@ class EnhancedMCPAgent {
 
       // Try to insert with file metadata first (if columns exist)
       if (fileMetadata) {
-        const screenshotWithMetadata: any = {
+        const screenshotWithMetadata: Record<string, unknown> = {
           ...baseScreenshotData,
           original_filename: fileMetadata.originalName,
           file_hash: fileMetadata.fileHash,
@@ -367,8 +362,8 @@ class EnhancedMCPAgent {
     }
   }
   
-  private generateRealInsights(tripData: TripData, ocrResult: {text: string, imageType: string, numbers: string[]}): Record<string, any> {
-    const insights: Record<string, any> = {
+  private generateRealInsights(tripData: TripData, ocrResult: {text: string, imageType: string, numbers: string[]}): Record<string, unknown> {
+    const insights: Record<string, unknown> = {
       data_source: 'real_ocr_extraction',
       ocr_confidence: ocrResult.numbers.length > 2 ? 'HIGH' : 'MODERATE',
       extracted_numbers: ocrResult.numbers,

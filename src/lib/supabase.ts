@@ -111,8 +111,8 @@ export interface TripScreenshot {
     | "other";
   image_path: string;
   upload_timestamp?: string;
-  ocr_data?: any; // Raw OCR text extracted from image
-  extracted_data?: any; // Structured data extracted from image
+  ocr_data?: Record<string, unknown>; // Raw OCR text extracted from image
+  extracted_data?: Record<string, unknown>; // Structured data extracted from image
   is_processed?: boolean;
   processing_notes?: string;
   created_at?: string;
@@ -127,7 +127,7 @@ export interface ReanalysisSession {
   date_range_start?: string;
   date_range_end?: string;
   trip_ids?: number[];
-  results: any;
+  results: Record<string, unknown>;
   created_at?: string;
   execution_time_ms?: number;
 }

@@ -106,21 +106,25 @@ export async function POST(request: NextRequest) {
 }
 
 // Generate insights from user corrections to improve AI
-function generateCorrectionInsight(correction: any): string {
+function generateCorrectionInsight(correction: Record<string, unknown>): string {
   const field = correction.field;
   const extracted = correction.extracted_value;
   const corrected = correction.corrected_value;
 
+  // Type guards for numeric values
+  const extractedNum = typeof extracted === 'number' ? extracted : 0;
+  const correctedNum = typeof corrected === 'number' ? corrected : 0;
+
   if (field === 'driver_earnings') {
-    if (extracted === 0 && corrected > 0) {
+    if (extractedNum === 0 && correctedNum > 0) {
       return `AI learned: Screenshots of this type contain earnings data that OCR missed. Will improve pattern recognition for similar layouts.`;
-    } else if (Math.abs(extracted - corrected) > 5) {
-      return `AI learned: OCR misread earnings by $${Math.abs(extracted - corrected).toFixed(2)}. Will adjust confidence thresholds for earnings extraction.`;
+    } else if (Math.abs(extractedNum - correctedNum) > 5) {
+      return `AI learned: OCR misread earnings by $${Math.abs(extractedNum - correctedNum).toFixed(2)}. Will adjust confidence thresholds for earnings extraction.`;
     }
   }
 
   if (field === 'distance') {
-    if (extracted === 0 && corrected > 0) {
+    if (extractedNum === 0 && correctedNum > 0) {
       return `AI learned: Distance information is present in screenshots but not being detected. Will enhance spatial text recognition.`;
     }
   }
@@ -135,7 +139,7 @@ function generateCorrectionInsight(correction: any): string {
 }
 
 // Assess how this correction impacts AI training
-function assessTrainingImpact(correction: any): {
+function assessTrainingImpact(correction: Record<string, unknown>): {
   impact_level: 'high' | 'medium' | 'low';
   description: string;
   next_steps: string[];
@@ -144,7 +148,11 @@ function assessTrainingImpact(correction: any): {
   const extracted = correction.extracted_value;
   const corrected = correction.corrected_value;
 
-  if (field === 'driver_earnings' && extracted === 0 && corrected > 0) {
+  // Type guards for numeric values
+  const extractedNum = typeof extracted === 'number' ? extracted : 0;
+  const correctedNum = typeof corrected === 'number' ? corrected : 0;
+
+  if (field === 'driver_earnings' && extractedNum === 0 && correctedNum > 0) {
     return {
       impact_level: 'high',
       description: 'Critical earnings data was missing - high impact correction',
@@ -156,7 +164,7 @@ function assessTrainingImpact(correction: any): {
     };
   }
 
-  if (field === 'distance' && extracted === 0 && corrected > 0) {
+  if (field === 'distance' && extractedNum === 0 && correctedNum > 0) {
     return {
       impact_level: 'medium',
       description: 'Distance data helps with profit calculations',

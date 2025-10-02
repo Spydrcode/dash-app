@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 export default function TestAPI() {
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
 
   const testProcessTrip = async () => {

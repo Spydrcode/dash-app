@@ -1,6 +1,8 @@
 // Run GPT System Database Setup via CLI
-require("dotenv").config({ path: ".env.local" });
-const { createClient } = require("@supabase/supabase-js");
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,

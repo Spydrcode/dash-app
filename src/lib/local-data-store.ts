@@ -52,28 +52,31 @@ export function loadTripsFromLocal(): LocalTripData[] {
 }
 
 // Save trip to local JSON file
-export function saveTripToLocal(tripData: any): string {
+export function saveTripToLocal(tripData: Record<string, unknown>): string {
   ensureDataDir();
 
   const trips = loadTripsFromLocal();
   const newTrip: LocalTripData = {
     id: generateTripId(),
-    trip_date: tripData.trip_date || new Date().toISOString().split("T")[0],
-    trip_time: tripData.trip_time || new Date().toTimeString().slice(0, 5),
-    pickup_location: tripData.pickup_location || "Unknown Location",
-    dropoff_location: tripData.dropoff_location || "Unknown Destination",
-    distance: tripData.distance || 0,
-    duration: tripData.duration || "0 minutes",
-    platform: tripData.platform || "Unknown Platform",
-    fare_amount: tripData.fare_amount || 0,
-    driver_earnings: tripData.driver_earnings || 0,
-    gas_cost: tripData.gas_cost || 0,
-    gas_used_gallons: tripData.gas_used_gallons || 0,
-    profit: tripData.profit || 0,
-    vehicle_model: tripData.vehicle_model || "2003 Honda Odyssey",
-    vehicle_mpg: tripData.vehicle_mpg || 19,
+    trip_date:
+      (tripData.trip_date as string) || new Date().toISOString().split("T")[0],
+    trip_time:
+      (tripData.trip_time as string) || new Date().toTimeString().slice(0, 5),
+    pickup_location: (tripData.pickup_location as string) || "Unknown Location",
+    dropoff_location:
+      (tripData.dropoff_location as string) || "Unknown Destination",
+    distance: (tripData.distance as number) || 0,
+    duration: (tripData.duration as string) || "0 minutes",
+    platform: (tripData.platform as string) || "Unknown Platform",
+    fare_amount: (tripData.fare_amount as number) || 0,
+    driver_earnings: (tripData.driver_earnings as number) || 0,
+    gas_cost: (tripData.gas_cost as number) || 0,
+    gas_used_gallons: (tripData.gas_used_gallons as number) || 0,
+    profit: (tripData.profit as number) || 0,
+    vehicle_model: (tripData.vehicle_model as string) || "2003 Honda Odyssey",
+    vehicle_mpg: (tripData.vehicle_mpg as number) || 19,
     created_at: new Date().toISOString(),
-    image_file: tripData.image_file,
+    image_file: tripData.image_file as string | undefined,
   };
 
   trips.push(newTrip);
@@ -124,7 +127,7 @@ export function getTripsInRange(
 // Get summary statistics
 export function getTripSummary(
   timeframe: "all" | "today" | "week" | "month" = "all"
-): any {
+): Record<string, unknown> {
   let trips = loadTripsFromLocal();
 
   // Filter by timeframe

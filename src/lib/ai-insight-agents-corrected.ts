@@ -4,8 +4,8 @@ import { RIDESHARE_VALIDATION_RULES, TripDataValidator } from './data-validator'
 export interface TripScreenshotData {
   id: string;
   screenshot_type: 'initial_offer' | 'final_total' | 'dashboard' | 'map';
-  ocr_data: any;
-  extracted_data: any;
+  ocr_data: Record<string, unknown>;
+  extracted_data: Record<string, unknown>;
   trip_id: string;
   upload_timestamp: string;
 }
@@ -13,14 +13,22 @@ export interface TripScreenshotData {
 export interface TripData {
   id: string;
   driver_id?: string;
-  trip_data: any; // JSON column containing trip details
+  trip_data?: {
+    trip_date?: string;
+    profit?: string | number;
+    driver_earnings?: string | number;
+    fare_amount?: string | number;
+    total_trips?: string | number;
+    distance?: string | number;
+    [key: string]: unknown;
+  };
   trip_screenshots?: TripScreenshotData[];
   created_at: string;
   upload_date?: string;
   total_profit?: number;
   total_distance?: number;
   vehicle_model?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Initialize validator for quality insights only
@@ -45,9 +53,9 @@ export class TimeAnalysisAgent {
       const tripDate = trip.trip_data?.trip_date;
       if (!tripDate) return;
       
-      const profit = parseFloat(trip.total_profit || trip.trip_data?.profit || 0);
-      const earnings = parseFloat(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const earnings = parseFloat(String(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
       
       if (!dailyGroups[tripDate]) {
         dailyGroups[tripDate] = { profit: 0, trips: 0, earnings: 0, records: [] };
@@ -101,7 +109,7 @@ export class TimeAnalysisAgent {
 
 // FIXED AI Insights Coordinator - Proper performance scoring and deduplication
 export class AIInsightsCoordinator {
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, options: any) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string, _options: Record<string, unknown>) {
     console.log(`🤖 AI Insights Coordinator: Analyzing ${trips.length} records for ACTUAL performance`);
     
     // Validate for quality insights but DON'T filter the data
@@ -113,7 +121,17 @@ export class AIInsightsCoordinator {
     }
 
     // DEDUPLICATE: Remove duplicate trip data based on date/profit combinations
-    const uniqueTrips = this.deduplicateTrips(trips);
+    const seen = new Set<string>();
+    const uniqueTrips: TripData[] = [];
+    trips.forEach(trip => {
+      const tripDate = trip.trip_data?.trip_date as string;
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const key = `${tripDate}-${profit}`;
+      if (!seen.has(key) && tripDate) {
+        seen.add(key);
+        uniqueTrips.push(trip);
+      }
+    });
     console.log(`🧹 Deduplicated: ${trips.length} records → ${uniqueTrips.length} unique trips`);
 
     // Get REAL time analysis with deduplicated data
@@ -126,10 +144,10 @@ export class AIInsightsCoordinator {
     let totalRealDistance = 0;
 
     uniqueTrips.forEach(trip => {
-      const profit = parseFloat(trip.total_profit || trip.trip_data?.profit || 0);
-      const earnings = parseFloat(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
-      const distance = parseFloat(trip.total_distance || trip.trip_data?.distance || 0);
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const earnings = parseFloat(String(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
+      const distance = parseFloat(String(trip.total_distance || trip.trip_data?.distance || 0));
       
       totalRealProfit += profit;
       totalRealEarnings += earnings;
@@ -207,14 +225,14 @@ export class AIInsightsCoordinator {
   }
 
   // DEDUPLICATE trips based on date, profit, and trip count to avoid counting screenshots multiple times
-  private static deduplicateTrips(trips: TripData[]): TripData[] {
+  private static calculateTotals(trips: TripData[]): Record<string, number> {
     const seen = new Set<string>();
     const uniqueTrips: TripData[] = [];
     
     trips.forEach(trip => {
       const tripDate = trip.trip_data?.trip_date;
-      const profit = parseFloat(trip.total_profit || trip.trip_data?.profit || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
       
       // Create unique key based on date, profit, and trip count
       const key = `${tripDate}-${profit}-${tripCount}`;
@@ -225,7 +243,17 @@ export class AIInsightsCoordinator {
       }
     });
     
-    return uniqueTrips;
+    // Calculate and return totals as Record<string, number>
+    const totalProfit = uniqueTrips.reduce((sum: number, trip) => 
+      sum + parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0)), 0);
+    const totalEarnings = uniqueTrips.reduce((sum: number, trip) => 
+      sum + parseFloat(String(trip.trip_data?.driver_earnings || 0)), 0);
+    
+    return {
+      total_trips: uniqueTrips.length,
+      total_profit: totalProfit,
+      total_earnings: totalEarnings
+    };
   }
 }
 
@@ -234,9 +262,18 @@ export class KeyInsightsAgent {
   static async generateInsights(trips: TripData[]): Promise<string[]> {
     if (trips.length === 0) return ['No trip data available'];
     
-    const uniqueTrips = AIInsightsCoordinator['deduplicateTrips'](trips);
-    const totalProfit = uniqueTrips.reduce((sum, trip) => 
-      sum + parseFloat(trip.total_profit || trip.trip_data?.profit || 0), 0);
+    // Inline deduplication
+    const seen = new Set<string>();
+    const uniqueTrips: TripData[] = [];
+    trips.forEach(trip => {
+      const tripDate = trip.trip_data?.trip_date as string;
+      if (!seen.has(tripDate) && tripDate) {
+        seen.add(tripDate);
+        uniqueTrips.push(trip);
+      }
+    });
+    const totalProfit = uniqueTrips.reduce((sum: number, trip: TripData) => 
+      sum + parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0)), 0);
     
     return [
       `Analyzed ${uniqueTrips.length} unique trips from ${trips.length} records`,
@@ -247,14 +284,24 @@ export class KeyInsightsAgent {
 }
 
 export class ProjectionsAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async generateProjections(trips: TripData[], timeframe: string) {
     if (trips.length === 0) return { daily_projection: { avg_profit: 0, avg_trips: 0 } };
     
-    const uniqueTrips = AIInsightsCoordinator['deduplicateTrips'](trips);
-    const totalProfit = uniqueTrips.reduce((sum, trip) => 
-      sum + parseFloat(trip.total_profit || trip.trip_data?.profit || 0), 0);
+    // Inline deduplication
+    const seen = new Set<string>();
+    const uniqueTrips: TripData[] = [];
+    trips.forEach(trip => {
+      const tripDate = trip.trip_data?.trip_date as string;
+      if (!seen.has(tripDate) && tripDate) {
+        seen.add(tripDate);
+        uniqueTrips.push(trip);
+      }
+    });
+    const totalProfit = uniqueTrips.reduce((sum: number, trip: TripData) => 
+      sum + parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0)), 0);
     
-    const activeDays = [...new Set(uniqueTrips.map(trip => trip.trip_data?.trip_date))].length || 1;
+    const activeDays = [...new Set(uniqueTrips.map((trip: TripData) => trip.trip_data?.trip_date))].length || 1;
     const avgDaily = totalProfit / activeDays;
     
     return {
@@ -265,6 +312,7 @@ export class ProjectionsAgent {
 }
 
 export class TrendsAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async analyzeTrends(trips: TripData[], timeframe: string) {
     return {
       trend: 'Week-by-week analysis requires multiple weeks of data',
@@ -275,6 +323,7 @@ export class TrendsAgent {
 }
 
 export class VehicleEfficiencyAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async analyzeHondaOdyssey(trips: TripData[]) {
     return {
       actual_mpg: 19.0,

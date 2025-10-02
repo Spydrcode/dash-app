@@ -132,8 +132,8 @@ async function reprocessAllScreenshots(): Promise<NextResponse> {
         after_usage: afterUsage
       },
       migration_summary: {
-        from: 'Local Ollama models',
-        to: 'OpenAI GPT-4o + GPT-4 Turbo',
+        from: 'Local Ollama/LLaVA models (removed)',
+        to: 'OpenAI GPT-4o + GPT-4 Turbo (active)',
         benefits: [
           'Higher accuracy vision processing',
           'More reliable insights generation',

@@ -61,21 +61,21 @@ export class EnhancedTripDataValidator {
   }
 
   // Clean missing earnings data
-  cleanMissingEarningsData(trips: any[]): { 
-    cleanedTrips: any[], 
+  cleanMissingEarningsData(trips: Record<string, unknown>[]): { 
+    cleanedTrips: Record<string, unknown>[], 
     fixedCount: number,
     issues: string[]
   } {
     console.log('🧹 Cleaning trips with missing earnings data...');
     
-    const cleanedTrips: any[] = [];
+    const cleanedTrips: Record<string, unknown>[] = [];
     let fixedCount = 0;
     const issues: string[] = [];
 
     for (const trip of trips) {
       const tripData = { ...trip };
-      let earnings = tripData.trip_data?.driver_earnings || tripData.driver_earnings || 0;
-      const distance = tripData.trip_data?.distance || tripData.distance || 0;
+      const earnings = ((tripData.trip_data as Record<string, unknown>)?.driver_earnings as number) || (tripData.driver_earnings as number) || 0;
+      const distance = ((tripData.trip_data as Record<string, unknown>)?.distance as number) || (tripData.distance as number) || 0;
       
       // Fix missing earnings for trips with distance
       if (distance > 0 && earnings === 0) {
@@ -83,8 +83,8 @@ export class EnhancedTripDataValidator {
         const estimatedEarnings = Math.max(2.50, distance * 1.2); // $1.20/mile minimum
         
         if (tripData.trip_data) {
-          tripData.trip_data.driver_earnings = estimatedEarnings;
-          tripData.trip_data.estimated_earnings = true;
+          (tripData.trip_data as Record<string, unknown>).driver_earnings = estimatedEarnings;
+          (tripData.trip_data as Record<string, unknown>).estimated_earnings = true;
         } else {
           tripData.driver_earnings = estimatedEarnings;
           tripData.estimated_earnings = true;
@@ -102,27 +102,27 @@ export class EnhancedTripDataValidator {
   }
 
   // Validate and clean trip data with flexible rules
-  validateAndCleanTrip(trip: any): { 
+  validateAndCleanTrip(trip: Record<string, unknown>): { 
     isValid: boolean; 
-    cleanedTrip: any;
+    cleanedTrip: Record<string, unknown>;
     issues: string[]; 
     fixes: string[];
   } {
     const issues: string[] = [];
     const fixes: string[] = [];
-    let cleanedTrip = { ...trip };
+    const cleanedTrip = { ...trip };
 
     // Extract values
-    let earnings = cleanedTrip.trip_data?.driver_earnings || cleanedTrip.driver_earnings || 0;
-    const distance = cleanedTrip.trip_data?.distance || cleanedTrip.distance || 0;
+    let earnings = ((cleanedTrip.trip_data as Record<string, unknown>)?.driver_earnings as number) || (cleanedTrip.driver_earnings as number) || 0;
+    const distance = ((cleanedTrip.trip_data as Record<string, unknown>)?.distance as number) || (cleanedTrip.distance as number) || 0;
     
     // Fix missing earnings
     if (distance > 0 && earnings === 0) {
       const estimatedEarnings = Math.max(2.50, distance * 1.2);
       
       if (cleanedTrip.trip_data) {
-        cleanedTrip.trip_data.driver_earnings = estimatedEarnings;
-        cleanedTrip.trip_data.estimated_earnings = true;
+        (cleanedTrip.trip_data as Record<string, unknown>).driver_earnings = estimatedEarnings;
+        (cleanedTrip.trip_data as Record<string, unknown>).estimated_earnings = true;
       } else {
         cleanedTrip.driver_earnings = estimatedEarnings;
         cleanedTrip.estimated_earnings = true;
@@ -143,9 +143,9 @@ export class EnhancedTripDataValidator {
         // In flexible mode, cap but don't invalidate
         const cappedEarnings = currentLimits.maxTripEarnings;
         if (cleanedTrip.trip_data) {
-          cleanedTrip.trip_data.driver_earnings = cappedEarnings;
-          cleanedTrip.trip_data.capped_earnings = true;
-          cleanedTrip.trip_data.original_earnings = earnings;
+          (cleanedTrip.trip_data as Record<string, unknown>).driver_earnings = cappedEarnings;
+          (cleanedTrip.trip_data as Record<string, unknown>).capped_earnings = true;
+          (cleanedTrip.trip_data as Record<string, unknown>).original_earnings = earnings;
         } else {
           cleanedTrip.driver_earnings = cappedEarnings;
           cleanedTrip.capped_earnings = true;
@@ -174,14 +174,14 @@ export class EnhancedTripDataValidator {
   }
 
   // Update adaptive limits based on observed patterns
-  updateAdaptiveLimits(trips: any[]): void {
+  updateAdaptiveLimits(trips: Record<string, unknown>[]): void {
     if (!this.rules.enableAdaptiveLimits || trips.length < 20) return;
 
     console.log('📊 Updating adaptive validation limits based on historical data...');
 
     // Analyze earnings distribution
     const earnings = trips
-      .map(trip => trip.trip_data?.driver_earnings || trip.driver_earnings || 0)
+      .map(trip => ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || (trip.driver_earnings as number) || 0)
       .filter(e => e > 0)
       .sort((a, b) => a - b);
 
@@ -215,7 +215,7 @@ export class EnhancedTripDataValidator {
   }
 
   // Analyze daily patterns for adaptive limits
-  private analyzeDailyPatterns(trips: any[]): {
+  private analyzeDailyPatterns(trips: Record<string, unknown>[]): {
     maxDailyTrips: number;
     maxDailyEarnings: number;
     avgDailyTrips: number;
@@ -224,13 +224,13 @@ export class EnhancedTripDataValidator {
     const dailyData: Record<string, { trips: number; earnings: number }> = {};
 
     trips.forEach(trip => {
-      const date = new Date(trip.created_at).toDateString();
+      const date = new Date(trip.created_at as string).toDateString();
       if (!dailyData[date]) {
         dailyData[date] = { trips: 0, earnings: 0 };
       }
       
       dailyData[date].trips++;
-      dailyData[date].earnings += trip.trip_data?.driver_earnings || trip.driver_earnings || 0;
+      dailyData[date].earnings += ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || (trip.driver_earnings as number) || 0;
     });
 
     const dailyValues = Object.values(dailyData);
@@ -243,8 +243,8 @@ export class EnhancedTripDataValidator {
   }
 
   // Main cleaning and validation method
-  processTripsDataset(trips: any[]): {
-    processedTrips: any[];
+  processTripsDataset(trips: Record<string, unknown>[]): {
+    processedTrips: Record<string, unknown>[];
     cleaningStats: {
       originalCount: number;
       processedCount: number;
@@ -265,7 +265,7 @@ export class EnhancedTripDataValidator {
     const { cleanedTrips, fixedCount } = this.cleanMissingEarningsData(trips);
 
     // Step 3: Process each trip
-    const processedTrips: any[] = [];
+    const processedTrips: Record<string, unknown>[] = [];
     const allIssues: string[] = [];
     const allFixes: string[] = [];
     let cappedTrips = 0;
@@ -280,8 +280,8 @@ export class EnhancedTripDataValidator {
       allFixes.push(...result.fixes);
       
       if (result.isValid) validTrips++;
-      if (result.cleanedTrip.estimated_earnings || result.cleanedTrip.trip_data?.estimated_earnings) estimatedTrips++;
-      if (result.cleanedTrip.capped_earnings || result.cleanedTrip.trip_data?.capped_earnings) cappedTrips++;
+      if ((result.cleanedTrip.estimated_earnings as boolean) || ((result.cleanedTrip.trip_data as Record<string, unknown>)?.estimated_earnings as boolean)) estimatedTrips++;
+      if ((result.cleanedTrip.capped_earnings as boolean) || ((result.cleanedTrip.trip_data as Record<string, unknown>)?.capped_earnings as boolean)) cappedTrips++;
     }
 
     const cleaningStats = {
@@ -312,7 +312,7 @@ export class EnhancedTripDataValidator {
   }
 
   // Generate data quality report
-  generateDataQualityReport(trips: any[]): {
+  generateDataQualityReport(trips: Record<string, unknown>[]): {
     overallScore: number;
     completeness: number;
     consistency: number;

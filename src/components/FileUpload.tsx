@@ -1,6 +1,7 @@
 'use client';
 
 import { CloudArrowUpIcon, PhotoIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import Image from 'next/image';
 import { useCallback, useRef, useState } from 'react';
 
 interface UploadedFile {
@@ -326,10 +327,12 @@ export default function FileUpload({
               <div key={fileItem.id} className="flex items-center p-4 bg-white border rounded-lg shadow-sm">
                 <div className="flex-shrink-0">
                   {fileItem.preview ? (
-                    <img
+                    <Image
                       src={fileItem.preview}
                       alt={fileItem.file.name}
                       className="w-16 h-16 object-cover rounded-lg"
+                      width={64}
+                      height={64}
                     />
                   ) : (
                     <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">

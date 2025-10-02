@@ -1,10 +1,29 @@
 // AI Training System for Rideshare Data Accuracy
 // Implements self-learning validation rules and OCR confidence tracking
 
+export interface ExtractedTripData {
+  driver_earnings?: number;
+  distance?: number;
+  trip_count?: number;
+  [key: string]: unknown;
+}
+
+export interface OCRData {
+  extraction_quality?: string;
+  raw_text?: string;
+  [key: string]: unknown;
+}
+
+export interface TripRecord {
+  trip_data?: ExtractedTripData;
+  ocr_data?: OCRData;
+  [key: string]: unknown;
+}
+
 export interface TrainingData {
   screenshot_id: string;
-  extracted_data: any;
-  validated_data: any; // Human-corrected data
+  extracted_data: ExtractedTripData;
+  validated_data: ExtractedTripData; // Human-corrected data
   ocr_confidence: number;
   correction_type: 'earnings' | 'distance' | 'trip_count' | 'other';
   feedback_timestamp: string;
@@ -29,8 +48,8 @@ export class AITrainingSystem {
   // Step 1: Collect training data from user corrections
   recordCorrection(
     screenshotId: string, 
-    extractedData: any, 
-    correctedData: any, 
+    extractedData: ExtractedTripData, 
+    correctedData: ExtractedTripData, 
     ocrConfidence: number
   ) {
     const correction: TrainingData = {
@@ -47,7 +66,7 @@ export class AITrainingSystem {
   }
 
   // NEW: Auto-train from existing uploaded data
-  async autoTrainFromExistingData(trips: any[]): Promise<{
+  async autoTrainFromExistingData(trips: TripRecord[]): Promise<{
     patternsLearned: number;
     rulesAdapted: number;
     confidenceImproved: boolean;
@@ -59,10 +78,10 @@ export class AITrainingSystem {
     
     // Learn from successful extractions (high confidence data)
     const successfulExtractions = trips.filter(trip => {
-      const extractedData = trip.extracted_data || trip.trip_data;
+      const extractedData = (trip.extracted_data as ExtractedTripData) || (trip.trip_data as ExtractedTripData);
       return extractedData && 
-             extractedData.driver_earnings > 0 && 
-             extractedData.distance > 0 &&
+             (extractedData.driver_earnings as number) > 0 && 
+             (extractedData.distance as number) > 0 &&
              (trip.ocr_data?.extraction_quality !== 'LOW');
     });
     
@@ -70,23 +89,23 @@ export class AITrainingSystem {
     
     // Auto-learn patterns from successful data
     successfulExtractions.forEach(trip => {
-      const extractedData = trip.extracted_data || trip.trip_data;
+      const extractedData = (trip.extracted_data as ExtractedTripData) || (trip.trip_data as ExtractedTripData);
       
       // Learn earnings patterns
-      if (extractedData.driver_earnings) {
-        this.learnPattern('earnings', extractedData.driver_earnings, trip.ocr_data?.raw_text || '');
+      if (extractedData && extractedData.driver_earnings) {
+        this.learnPattern('earnings', extractedData.driver_earnings, (trip.ocr_data as OCRData)?.raw_text || '');
         patternsLearned++;
       }
       
       // Learn distance patterns  
-      if (extractedData.distance) {
-        this.learnPattern('distance', extractedData.distance, trip.ocr_data?.raw_text || '');
+      if (extractedData && extractedData.distance) {
+        this.learnPattern('distance', extractedData.distance, (trip.ocr_data as OCRData)?.raw_text || '');
         patternsLearned++;
       }
       
       // Learn trip count patterns
-      if (extractedData.total_trips) {
-        this.learnPattern('trips', extractedData.total_trips, trip.ocr_data?.raw_text || '');
+      if (extractedData && extractedData.total_trips) {
+        this.learnPattern('trips', extractedData.total_trips, (trip.ocr_data as OCRData)?.raw_text || '');
         patternsLearned++;
       }
     });
@@ -107,7 +126,7 @@ export class AITrainingSystem {
   }
   
   // Learn extraction patterns from successful data
-  private learnPattern(type: string, value: any, ocrText: string) {
+  private learnPattern(type: string, value: unknown, ocrText: string) {
     // Increment pattern frequency
     const key = `${type}_${typeof value}`;
     this.learningMetrics.pattern_frequency[key] = (this.learningMetrics.pattern_frequency[key] || 0) + 1;
@@ -120,17 +139,16 @@ export class AITrainingSystem {
   }
 
   // Step 2: Learn from your actual data patterns
-  adaptValidationRules(currentTrips: any[]): ValidationRules {
+  adaptValidationRules(historicalData: Record<string, unknown>[]): Record<string, unknown> {
     const adaptedRules = { ...RIDESHARE_VALIDATION_RULES };
     
     // Learn from your actual earnings patterns
-    const earnings = currentTrips
-      .map(t => parseFloat(t.trip_data?.driver_earnings || 0))
-      .filter(e => e > 0);
+    const earnings = historicalData
+      .map((t: Record<string, unknown>) => parseFloat(String((t.trip_data as ExtractedTripData)?.driver_earnings || 0)))
+      .filter((e: number) => e > 0);
     
     if (earnings.length > 10) {
       const maxEarnings = Math.max(...earnings);
-      const avgEarnings = earnings.reduce((a, b) => a + b, 0) / earnings.length;
       
       // Adapt max earnings based on YOUR actual data (not generic rules)
       adaptedRules.maxTripEarnings = Math.max(maxEarnings * 1.2, 50);
@@ -138,7 +156,7 @@ export class AITrainingSystem {
     }
     
     // Learn from your actual trip frequency
-    const tripsByDay = this.groupTripsByDay(currentTrips);
+    const tripsByDay = this.groupTripsByDay(historicalData);
     const dailyCounts = Object.values(tripsByDay).map(trips => trips.length);
     
     if (dailyCounts.length > 3) {
@@ -151,21 +169,21 @@ export class AITrainingSystem {
   }
 
   // Step 3: Improve OCR accuracy with pattern recognition (now auto-learned)
-  improveOCRExtraction(rawText: string, imageType: string): any {
+  improveOCRExtraction(ocrText: string, expectedType: string): Record<string, unknown> {
     // Use patterns learned from existing successful extractions
-    const patterns = this.getLearnedPatterns(imageType);
-    const confidence = this.calculateExtractionConfidence(rawText, patterns);
+    const patterns = this.getLearnedPatterns();
+    const _confidence = this.calculateExtractionConfidence(ocrText, patterns);
     
     // Apply learned patterns to improve extraction
-    const extractedData: any = {};
+    const extractedData: ExtractedTripData = {};
     
-    if (imageType === 'final_receipt') {
+    if (expectedType === 'final_receipt') {
       // Learn your specific app's UI patterns
       const earningsPattern = patterns.earnings || /\$(\d+\.\d{2})/g;
       const distancePattern = patterns.distance || /(\d+\.\d{1,2})\s*(mi|miles)/i;
       
-      const earningsMatch = rawText.match(earningsPattern);
-      const distanceMatch = rawText.match(distancePattern);
+      const earningsMatch = ocrText.match(earningsPattern);
+      const distanceMatch = ocrText.match(distancePattern);
       
       if (earningsMatch) {
         extractedData.driver_earnings = parseFloat(earningsMatch[1] || earningsMatch[0].replace('$', ''));
@@ -176,15 +194,14 @@ export class AITrainingSystem {
       }
       
       // Track confidence based on pattern matches
-      const confidence = (earningsMatch ? 0.5 : 0) + (distanceMatch ? 0.5 : 0);
-      extractedData.extraction_confidence = confidence;
+      extractedData.extraction_confidence = (earningsMatch ? 0.5 : 0) + (distanceMatch ? 0.5 : 0);
     }
     
     return extractedData;
   }
 
   // Step 4: Generate realistic performance benchmarks from YOUR data
-  generatePersonalizedBenchmarks(trips: any[]): {
+  generatePersonalizedBenchmarks(trips: TripRecord[]): {
     excellentPerformance: number;
     goodPerformance: number;
     averagePerformance: number;
@@ -192,8 +209,8 @@ export class AITrainingSystem {
     targetTripsPerDay: number;
   } {
     const validTrips = trips.filter(t => 
-      t.trip_data?.driver_earnings > 0 && 
-      t.trip_data?.distance > 0
+      ((t.trip_data as ExtractedTripData)?.driver_earnings as number) > 0 && 
+      ((t.trip_data as ExtractedTripData)?.distance as number) > 0
     );
     
     if (validTrips.length < 5) {
@@ -208,9 +225,10 @@ export class AITrainingSystem {
     }
     
     // Calculate YOUR actual performance quartiles
-    const earningsPerTrip = validTrips.map(t => 
-      parseFloat(t.trip_data.driver_earnings) / parseInt(t.trip_data.total_trips || 1)
-    );
+    const earningsPerTrip = validTrips.map(t => {
+      const tripData = t.trip_data as ExtractedTripData;
+      return parseFloat(String(tripData?.driver_earnings || 0)) / parseInt(String(tripData?.total_trips || 1));
+    });
     
     earningsPerTrip.sort((a, b) => a - b);
     const q1 = earningsPerTrip[Math.floor(earningsPerTrip.length * 0.25)];
@@ -227,7 +245,7 @@ export class AITrainingSystem {
   }
 
   // Step 5: Adaptive screenshot classification
-  classifyScreenshotType(ocrText: string, imagePath: string): string {
+  classifyScreenshotType(ocrText: string): string {
     const patterns = this.learningMetrics.pattern_frequency;
     
     // Learn from successful classifications
@@ -247,7 +265,7 @@ export class AITrainingSystem {
   }
 
   // Helper methods
-  private identifyCorrectionType(extracted: any, corrected: any): 'earnings' | 'distance' | 'trip_count' | 'other' {
+  private identifyCorrectionType(extracted: ExtractedTripData, corrected: ExtractedTripData): 'earnings' | 'distance' | 'trip_count' | 'other' {
     if (extracted.driver_earnings !== corrected.driver_earnings) return 'earnings';
     if (extracted.distance !== corrected.distance) return 'distance';
     if (extracted.total_trips !== corrected.total_trips) return 'trip_count';
@@ -285,15 +303,15 @@ export class AITrainingSystem {
     const extracted = correction.extracted_data;
     const validated = correction.validated_data;
     
-    if (extracted.driver_earnings === 0 && validated.driver_earnings > 0) {
+    if ((extracted.driver_earnings || 0) === 0 && (validated.driver_earnings || 0) > 0) {
       return 'missing_earnings_extraction';
     }
     
-    if (extracted.distance === 0 && validated.distance > 0) {
+    if ((extracted.distance || 0) === 0 && (validated.distance || 0) > 0) {
       return 'missing_distance_extraction';
     }
     
-    if (Math.abs(extracted.driver_earnings - validated.driver_earnings) > 5) {
+    if (Math.abs((extracted.driver_earnings || 0) - (validated.driver_earnings || 0)) > 5) {
       return 'significant_earnings_error';
     }
     
@@ -303,11 +321,9 @@ export class AITrainingSystem {
   // Calculate extraction confidence based on learned patterns
   private calculateExtractionConfidence(rawText: string, patterns: Record<string, RegExp>): number {
     let confidence = 0;
-    let patternMatches = 0;
     
     Object.entries(patterns).forEach(([type, pattern]) => {
       if (rawText.match(pattern)) {
-        patternMatches++;
         // Weight based on learned frequency
         const frequency = this.learningMetrics.pattern_frequency[`${type}_text_pattern`] || 1;
         confidence += Math.min(frequency / 10, 0.4); // Max 0.4 per pattern
@@ -317,7 +333,7 @@ export class AITrainingSystem {
     return Math.min(confidence, 0.95); // Max 95% confidence
   }
 
-  private getLearnedPatterns(imageType: string): Record<string, RegExp> {
+  private getLearnedPatterns(): Record<string, RegExp> {
     // Enhanced patterns based on learned successful extractions
     const basePatterns = {
       earnings: /\$(\d+\.\d{2})/g,
@@ -342,11 +358,11 @@ export class AITrainingSystem {
     return basePatterns;
   }
 
-  private groupTripsByDay(trips: any[]): Record<string, any[]> {
-    const groups: Record<string, any[]> = {};
+  private groupTripsByDay(trips: Record<string, unknown>[]): Record<string, Record<string, unknown>[]> {
+    const groups: Record<string, Record<string, unknown>[]> = {};
     
     trips.forEach(trip => {
-      const date = trip.trip_data?.trip_date || trip.created_at?.split('T')[0];
+      const date = ((trip.trip_data as ExtractedTripData)?.trip_date as string) || (trip.created_at as string)?.split('T')[0];
       if (date) {
         if (!groups[date]) groups[date] = [];
         groups[date].push(trip);
@@ -356,10 +372,10 @@ export class AITrainingSystem {
     return groups;
   }
 
-  private calculateAverageTripsPerDay(trips: any[]): number {
+  private calculateAverageTripsPerDay(trips: Record<string, unknown>[]): number {
     const dailyGroups = this.groupTripsByDay(trips);
     const dailyCounts = Object.values(dailyGroups).map(dayTrips => 
-      dayTrips.reduce((sum, trip) => sum + parseInt(trip.trip_data?.total_trips || 1), 0)
+      dayTrips.reduce((sum, trip) => sum + parseInt(((trip as Record<string, unknown>).trip_data as Record<string, unknown>)?.total_trips as string || '1'), 0)
     );
     
     return dailyCounts.length > 0 
@@ -392,5 +408,5 @@ export class AITrainingSystem {
 }
 
 // Import existing validation rules
-import { RIDESHARE_VALIDATION_RULES, ValidationRules } from './data-validator';
+import { RIDESHARE_VALIDATION_RULES } from './data-validator';
 

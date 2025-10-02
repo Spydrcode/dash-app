@@ -17,7 +17,7 @@ export interface TokenUsage {
 export interface CachedInsight {
   id: string;
   insight_hash: string;
-  insights_data: any;
+  insights_data: Record<string, unknown>;
   token_usage: TokenUsage;
   created_at: string;
   screenshots_processed: string[];
@@ -56,7 +56,7 @@ export class GPTServiceWithTracking {
   }
 
   // Main screenshot processing with GPT-4o vision
-  async processScreenshotWithGPT4(imageBase64: string, screenshotType: string, screenshotId: string): Promise<any> {
+  async processScreenshotWithGPT4(imageBase64: string, screenshotType: string, screenshotId: string): Promise<Record<string, unknown>> {
     console.log(`👁️ Processing ${screenshotType} screenshot ${screenshotId} with GPT-4o vision...`);
 
     try {
@@ -126,7 +126,7 @@ export class GPTServiceWithTracking {
       console.log(`📊 GPT-4o Vision: ${tokenUsage.total_tokens} tokens ($${tokenUsage.cost_estimate.toFixed(4)})`);
 
       // Parse and cache the result
-      const parsedResult = this.parseVisionResponse(result.choices[0].message.content, screenshotType);
+      const parsedResult = this.parseVisionResponse(result.choices[0].message.content);
       await this.cacheScreenshotResult(screenshotId, parsedResult, tokenUsage);
 
       return parsedResult;
@@ -147,8 +147,11 @@ export class GPTServiceWithTracking {
   }
 
   // AI insights generation with GPT-4 Turbo
-  async generateInsightsWithGPT4(data: any, model: string = 'gpt-4-turbo'): Promise<any> {
+  async generateInsights(tripsData: Record<string, unknown>, analysisType: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const model = 'gpt-4-turbo';
     console.log(`🧠 Generating insights with ${model}...`);
+    
+    const data = { tripsData, analysisType };
 
     try {
       // Check for cached insights first
@@ -215,7 +218,7 @@ export class GPTServiceWithTracking {
 
     } catch (error) {
       console.error(`❌ ${model} insights generation failed:`, error);
-      return this.generateFallbackInsights(data);
+      return this.generateFallbackInsights();
     }
   }
 
@@ -234,8 +237,8 @@ export class GPTServiceWithTracking {
           screenshot_id: usage.screenshot_id,
           created_at: usage.timestamp
         });
-    } catch (error) {
-      console.error('Failed to save token usage:', error);
+    } catch {
+      console.error('Failed to save token usage');
     }
   }
 
@@ -245,7 +248,7 @@ export class GPTServiceWithTracking {
   }
 
   // Smart caching methods
-  private async getCachedScreenshotResult(screenshotId: string): Promise<any | null> {
+  private async getCachedScreenshotResult(screenshotId: string): Promise<Record<string, unknown> | null> {
     try {
       const { data } = await supabaseAdmin
         .from('screenshot_cache')
@@ -254,12 +257,12 @@ export class GPTServiceWithTracking {
         .single();
 
       return data?.result_data || null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  private async cacheScreenshotResult(screenshotId: string, result: any, tokenUsage: TokenUsage): Promise<void> {
+  private async cacheScreenshotResult(screenshotId: string, result: Record<string, unknown>, tokenUsage: TokenUsage): Promise<void> {
     try {
       await supabaseAdmin
         .from('screenshot_cache')
@@ -274,7 +277,7 @@ export class GPTServiceWithTracking {
     }
   }
 
-  private async getCachedInsights(data: any): Promise<CachedInsight | null> {
+  private async getCachedInsights(data: Record<string, unknown>): Promise<CachedInsight | null> {
     try {
       const dataHash = this.generateDataHash(data);
       
@@ -290,12 +293,12 @@ export class GPTServiceWithTracking {
       }
 
       return null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  private async cacheInsights(data: any, insights: any, tokenUsage: TokenUsage): Promise<void> {
+  private async cacheInsights(data: Record<string, unknown>, insights: Record<string, unknown>, tokenUsage: TokenUsage): Promise<void> {
     try {
       const dataHash = this.generateDataHash(data);
       
@@ -305,8 +308,8 @@ export class GPTServiceWithTracking {
           insight_hash: dataHash,
           insights_data: insights,
           token_usage: tokenUsage,
-          trip_count: data.totals?.trips || 0,
-          total_earnings: data.totals?.earnings || 0,
+          trip_count: (data.totals as Record<string, unknown>)?.trips as number || 0,
+          total_earnings: (data.totals as Record<string, unknown>)?.earnings as number || 0,
           created_at: new Date().toISOString()
         });
     } catch (error) {
@@ -315,7 +318,7 @@ export class GPTServiceWithTracking {
   }
 
   // Public methods for token monitoring
-  public async getTokenUsageSummary(): Promise<any> {
+  public async getTokenUsageSummary(): Promise<Record<string, unknown>> {
     try {
       const { data: usageData } = await supabaseAdmin
         .from('token_usage_log')
@@ -346,8 +349,8 @@ export class GPTServiceWithTracking {
           cost: this.totalCostAccumulated
         }
       };
-    } catch (error) {
-      console.error('Failed to get token usage summary:', error);
+    } catch {
+      console.error('Failed to get token usage summary');
       return { error: 'Failed to retrieve usage data' };
     }
   }
@@ -360,9 +363,9 @@ export class GPTServiceWithTracking {
     return promptCost + completionCost;
   }
 
-  private generateDataHash(data: any): string {
+  private generateDataHash(data: Record<string, unknown>): string {
     // Simple hash based on trip count and earnings to detect when insights need updating
-    const key = `${data.totals?.trips || 0}-${data.totals?.earnings || 0}-${data.timeframe || 'all'}`;
+    const key = `${(data.totals as Record<string, unknown>)?.trips || 0}-${(data.totals as Record<string, unknown>)?.earnings || 0}-${data.timeframe || 'all'}`;
     return Buffer.from(key).toString('base64').slice(0, 32);
   }
 
@@ -371,17 +374,17 @@ export class GPTServiceWithTracking {
     return cacheAge < 24 * 60 * 60 * 1000; // 24 hours
   }
 
-  private calculateDailyBreakdown(usageData: any[]): Record<string, any> {
-    const breakdown: Record<string, any> = {};
+  private calculateDailyBreakdown(usageData: Record<string, unknown>[]): Record<string, Record<string, unknown>> {
+    const breakdown: Record<string, Record<string, unknown>> = {};
     
     usageData.forEach(record => {
-      const date = record.created_at.split('T')[0];
+      const date = (record.created_at as string).split('T')[0];
       if (!breakdown[date]) {
         breakdown[date] = { tokens: 0, cost: 0, requests: 0 };
       }
-      breakdown[date].tokens += record.total_tokens;
-      breakdown[date].cost += record.cost_estimate;
-      breakdown[date].requests += 1;
+      (breakdown[date].tokens as number) += record.total_tokens as number;
+      (breakdown[date].cost as number) += record.cost_estimate as number;
+      (breakdown[date].requests as number) += 1;
     });
 
     return breakdown;
@@ -428,15 +431,15 @@ Extract only clearly visible numeric values. Use null for missing data.`
     return prompts[screenshotType as keyof typeof prompts] || prompts.dashboard;
   }
 
-  private buildInsightPrompt(data: any): string {
+  private buildInsightPrompt(data: Record<string, unknown>): string {
     return `Analyze this rideshare performance data and provide comprehensive insights:
 
 DATA SUMMARY:
-- Total Trips: ${data.totals?.trips || 0}
-- Total Earnings: $${data.totals?.earnings || 0}
-- Total Profit: $${data.totals?.profit || 0}
-- Total Distance: ${data.totals?.distance || 0} miles
-- Active Days: ${data.totals?.activeDays || 1}
+- Total Trips: ${(data.totals as Record<string, unknown>)?.trips || 0}
+- Total Earnings: $${(data.totals as Record<string, unknown>)?.earnings || 0}
+- Total Profit: $${(data.totals as Record<string, unknown>)?.profit || 0}
+- Total Distance: ${(data.totals as Record<string, unknown>)?.distance || 0} miles
+- Active Days: ${(data.totals as Record<string, unknown>)?.activeDays || 1}
 - Timeframe: ${data.timeframe || 'unknown'}
 
 Provide analysis in this EXACT JSON format:
@@ -464,7 +467,7 @@ Focus on specific numbers and percentages. Be actionable and realistic.`;
   }
 
   // Response parsing methods
-  private parseVisionResponse(response: string, screenshotType: string): any {
+  private parseVisionResponse(response: string): Record<string, unknown> {
     try {
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -498,7 +501,7 @@ Focus on specific numbers and percentages. Be actionable and realistic.`;
     }
   }
 
-  private parseInsightResponse(response: string): any {
+  private parseInsightResponse(response: string): Record<string, unknown> {
     try {
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
@@ -515,12 +518,12 @@ Focus on specific numbers and percentages. Be actionable and realistic.`;
       }
     } catch (error) {
       console.error('Failed to parse insights response:', error);
-      return this.generateFallbackInsights({});
+      return this.generateFallbackInsights();
     }
   }
 
-  private parsePlainTextInsights(response: string): any {
-    const insights: any = {
+  private parsePlainTextInsights(response: string): Record<string, unknown> {
+    const insights: Record<string, unknown> = {
       performance_score: 50,
       key_insights: [],
       recommendations: [],
@@ -536,21 +539,21 @@ Focus on specific numbers and percentages. Be actionable and realistic.`;
         if (scoreMatch) insights.performance_score = parseInt(scoreMatch[1]);
       }
       if (line.toLowerCase().includes('insight') || line.toLowerCase().includes('finding')) {
-        insights.key_insights.push(line.trim());
+        (insights.key_insights as string[]).push(line.trim());
       }
       if (line.toLowerCase().includes('recommend') || line.toLowerCase().includes('suggest')) {
-        insights.recommendations.push(line.trim());
+        (insights.recommendations as string[]).push(line.trim());
       }
     }
 
     return insights;
   }
 
-  private assessExtractionQuality(data: any): 'HIGH' | 'MEDIUM' | 'LOW' {
+  private assessExtractionQuality(data: Record<string, unknown>): 'HIGH' | 'MEDIUM' | 'LOW' {
     let fieldCount = 0;
-    if (data.driver_earnings && data.driver_earnings > 0) fieldCount++;
-    if (data.distance && data.distance > 0) fieldCount++;
-    if (data.total_trips && data.total_trips > 0) fieldCount++;
+    if (data.driver_earnings && (data.driver_earnings as number) > 0) fieldCount++;
+    if (data.distance && (data.distance as number) > 0) fieldCount++;
+    if (data.total_trips && (data.total_trips as number) > 0) fieldCount++;
     if (data.pickup_location) fieldCount++;
     if (data.destination) fieldCount++;
 
@@ -559,17 +562,17 @@ Focus on specific numbers and percentages. Be actionable and realistic.`;
     return 'LOW';
   }
 
-  private calculateConfidence(data: any): number {
+  private calculateConfidence(data: Record<string, unknown>): number {
     let score = 0;
-    if (data.driver_earnings && data.driver_earnings > 0) score += 35;
-    if (data.distance && data.distance > 0) score += 25;
-    if (data.total_trips && data.total_trips > 0) score += 20;
+    if (data.driver_earnings && (data.driver_earnings as number) > 0) score += 35;
+    if (data.distance && (data.distance as number) > 0) score += 25;
+    if (data.total_trips && (data.total_trips as number) > 0) score += 20;
     if (data.pickup_location) score += 10;
     if (data.destination) score += 10;
     return Math.min(score, 100);
   }
 
-  private generateFallbackInsights(data: any): any {
+  private generateFallbackInsights(): Record<string, unknown> {
     return {
       performance_score: 50,
       key_insights: ['Analysis temporarily unavailable', 'Using fallback calculations', 'Detailed insights will be generated when API is available'],

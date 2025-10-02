@@ -52,18 +52,18 @@ export class TripDataValidator {
   }
 
   // Validate individual trip data
-  validateTrip(trip: any): { isValid: boolean; issues: string[]; sanitizedTrip?: any } {
+  validateTripData(trip: Record<string, unknown>): Record<string, unknown> {
     const issues: string[] = [];
     const sanitizedTrip = { ...trip };
 
     // Extract trip earnings
-    const earnings = trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || trip.driver_earnings || 0;
-    const distance = trip.trip_data?.distance || trip.distance || 0;
+    const earnings = ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || ((trip.trip_data as Record<string, unknown>)?.total_amount as number) || (trip.driver_earnings as number) || 0;
+    const distance = ((trip.trip_data as Record<string, unknown>)?.distance as number) || (trip.distance as number) || 0;
     
     // Check earnings bounds
     if (earnings > this.rules.maxTripEarnings) {
       issues.push(`Trip earnings $${earnings} exceeds realistic maximum of $${this.rules.maxTripEarnings}`);
-      sanitizedTrip.trip_data = { ...sanitizedTrip.trip_data, driver_earnings: this.rules.maxTripEarnings };
+            sanitizedTrip.trip_data = { ...(sanitizedTrip.trip_data as Record<string, unknown> || {}), driver_earnings: this.rules.maxTripEarnings };
     }
     
     if (earnings < this.rules.minTripEarnings && earnings > 0) {
@@ -73,7 +73,7 @@ export class TripDataValidator {
     // Check distance bounds
     if (distance > this.rules.maxTripDistance) {
       issues.push(`Trip distance ${distance} miles exceeds realistic maximum of ${this.rules.maxTripDistance}`);
-      sanitizedTrip.trip_data = { ...sanitizedTrip.trip_data, distance: this.rules.maxTripDistance };
+      sanitizedTrip.trip_data = { ...(sanitizedTrip.trip_data as Record<string, unknown> || {}), distance: this.rules.maxTripDistance };
     }
 
     // Check for obviously bad data
@@ -90,26 +90,26 @@ export class TripDataValidator {
   }
 
   // Validate daily aggregates  
-  validateDayData(trips: any[], date: string): { isValid: boolean; issues: string[]; validTrips: any[] } {
+  validateDayData(trips: Record<string, unknown>[], date: string): { isValid: boolean; issues: string[]; validTrips: Record<string, unknown>[] } {
     const issues: string[] = [];
-    const validTrips: any[] = [];
+    const validTrips: Record<string, unknown>[] = [];
     
     let dailyEarnings = 0;
     let dailyTrips = 0;
 
     // Validate each trip and accumulate totals
     for (const trip of trips) {
-      const validation = this.validateTrip(trip);
+      const validation = this.validateTripData(trip) as {isValid: boolean, issues: string[], sanitizedTrip?: Record<string, unknown>};
       
       if (validation.isValid) {
         validTrips.push(trip);
-        dailyEarnings += trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || 0;
+        dailyEarnings += ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || ((trip.trip_data as Record<string, unknown>)?.total_amount as number) || 0;
         dailyTrips++;
       } else {
         // Use sanitized version if available
         if (validation.sanitizedTrip) {
           validTrips.push(validation.sanitizedTrip);
-          dailyEarnings += validation.sanitizedTrip.trip_data?.driver_earnings || 0;
+          dailyEarnings += ((validation.sanitizedTrip.trip_data as Record<string, unknown>)?.driver_earnings as number) || 0;
           dailyTrips++;
         }
         issues.push(...validation.issues);
@@ -144,11 +144,11 @@ export class TripDataValidator {
   }
 
   // Analyze hourly distribution
-  private analyzeHourlyDistribution(trips: any[]): Record<string, { trips: number; earnings: number }> {
+  private analyzeHourlyDistribution(trips: Record<string, unknown>[]): Record<string, { trips: number; earnings: number }> {
     const hourlyStats: Record<string, { trips: number; earnings: number }> = {};
 
     for (const trip of trips) {
-      const tripDate = new Date(trip.created_at);
+      const tripDate = new Date(trip.created_at as string);
       const hour = tripDate.getHours();
       
       if (!hourlyStats[hour]) {
@@ -156,26 +156,26 @@ export class TripDataValidator {
       }
       
       hourlyStats[hour].trips++;
-      hourlyStats[hour].earnings += trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || 0;
+      hourlyStats[hour].earnings += ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || ((trip.trip_data as Record<string, unknown>)?.total_amount as number) || 0;
     }
 
     return hourlyStats;
   }
 
   // Clean and validate trip dataset
-  cleanTripDataset(trips: any[]): {
-    validTrips: any[];
-    removedTrips: any[];
+  cleanTripDataset(trips: Record<string, unknown>[]): {
+    validTrips: unknown[];
+    removedTrips: unknown[];
     issues: string[];
     stats: {
       originalCount: number;
       validCount: number;
       cleanedCount: number;
       issueCount: number;
-    }
+    };
   } {
-    const validTrips: any[] = [];
-    const removedTrips: any[] = [];
+    const validTrips: Record<string, unknown>[] = [];
+    const removedTrips: Record<string, unknown>[] = [];
     const allIssues: string[] = [];
 
     console.log(`🧹 Validating ${trips.length} trips for realistic data...`);
@@ -184,7 +184,7 @@ export class TripDataValidator {
     const tripsByDay = this.groupTripsByDay(trips);
     
     for (const [date, dayTrips] of Object.entries(tripsByDay)) {
-      const dayValidation = this.validateDayData(dayTrips as any[], date);
+      const dayValidation = this.validateDayData(dayTrips as Record<string, unknown>[], date);
       
       if (dayValidation.isValid) {
         validTrips.push(...dayValidation.validTrips);
@@ -219,11 +219,11 @@ export class TripDataValidator {
   }
 
   // Group trips by day for analysis
-  private groupTripsByDay(trips: any[]): Record<string, any[]> {
-    const tripsByDay: Record<string, any[]> = {};
+  private groupTripsByDay(trips: Record<string, unknown>[]): Record<string, Record<string, unknown>[]> {
+    const tripsByDay: Record<string, Record<string, unknown>[]> = {};
     
     for (const trip of trips) {
-      const date = new Date(trip.created_at).toDateString();
+      const date = new Date(trip.created_at as string).toDateString();
       if (!tripsByDay[date]) {
         tripsByDay[date] = [];
       }
@@ -234,11 +234,11 @@ export class TripDataValidator {
   }
 
   // Remove statistical outliers
-  private removeOutliers(trips: any[]): any[] {
+  private removeOutliers(trips: Record<string, unknown>[]): Record<string, unknown>[] {
     if (trips.length < 10) return trips; // Need minimum data for outlier detection
 
     const earnings = trips.map(trip => 
-      trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || 0
+      ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || ((trip.trip_data as Record<string, unknown>)?.total_amount as number) || 0
     ).filter(e => e > 0);
 
     if (earnings.length === 0) return trips;
@@ -257,7 +257,7 @@ export class TripDataValidator {
 
     // Filter out extreme outliers only
     const cleanTrips = trips.filter(trip => {
-      const earnings = trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || 0;
+      const earnings = ((trip.trip_data as Record<string, unknown>)?.driver_earnings as number) || ((trip.trip_data as Record<string, unknown>)?.total_amount as number) || 0;
       return earnings >= lowerBound && earnings <= upperBound;
     });
 
@@ -269,13 +269,13 @@ export class TripDataValidator {
   }
 
   // Validate screenshot data quality
-  validateScreenshotData(trip: any): boolean {
-    if (!trip.trip_screenshots || trip.trip_screenshots.length === 0) {
+  validateScreenshotData(trip: Record<string, unknown>): boolean {
+    if (!trip.trip_screenshots || (trip.trip_screenshots as unknown[]).length === 0) {
       return false; // No screenshots = can't validate
     }
 
     // Check if screenshots have processed data
-    const processedScreenshots = trip.trip_screenshots.filter((screenshot: any) => 
+    const processedScreenshots = (trip.trip_screenshots as Record<string, unknown>[]).filter((screenshot: Record<string, unknown>) => 
       screenshot.is_processed && screenshot.extracted_data
     );
 
@@ -283,7 +283,7 @@ export class TripDataValidator {
   }
 
   // Get validation summary
-  getValidationSummary(trips: any[]): {
+  getValidationSummary(trips: Record<string, unknown>[]): {
     totalTrips: number;
     validTrips: number;
     hasScreenshots: number;
@@ -297,14 +297,14 @@ export class TripDataValidator {
     const tripsWithScreenshots = trips.filter(trip => this.validateScreenshotData(trip)).length;
     
     // Calculate daily averages
-    const tripsByDay = this.groupTripsByDay(validTrips);
+    const tripsByDay = this.groupTripsByDay(validTrips as Record<string, unknown>[]);
     const activeDays = Object.keys(tripsByDay).length;
     const avgDailyTrips = activeDays > 0 ? validTrips.length / activeDays : 0;
     
-    const totalEarnings = validTrips.reduce((sum, trip) => 
-      sum + (trip.trip_data?.driver_earnings || trip.trip_data?.total_amount || 0), 0
+    const totalEarnings = validTrips.reduce((sum: number, trip) => 
+      sum + (((trip as Record<string, unknown>).trip_data as Record<string, unknown>)?.driver_earnings as number || ((trip as Record<string, unknown>).trip_data as Record<string, unknown>)?.total_amount as number || 0), 0
     );
-    const avgDailyEarnings = activeDays > 0 ? totalEarnings / activeDays : 0;
+    const avgDailyEarnings = activeDays > 0 ? Number(totalEarnings) / activeDays : 0;
     
     // Calculate data quality score
     const screenshotQuality = trips.length > 0 ? (tripsWithScreenshots / trips.length) * 100 : 0;

@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+// const fs = fs; // Unused - commented out
+// const path = path; // Unused - commented out
 
 // Create a test image upload to our MCP-powered API
 async function testMCPUpload() {

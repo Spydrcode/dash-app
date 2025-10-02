@@ -2,10 +2,10 @@
 // Each screenshot type has its own data structure and validation rules
 
 export interface ScreenshotDataStructure {
-  screenshot_type: 'initial_offer' | 'final_total' | 'dashboard_odometer' | 'trip_summary' | 'earnings_summary' | 'map_route' | 'unknown';
+  screenshot_type: 'initial_offer' | 'final_total' | 'dashboard_odometer' | 'trip_  private parseOcrResponse(response: string, template: Record<string, unknown>): ScreenshotDataStructure {ummary' | 'earnings_summary' | 'map_route' | 'unknown';
   data_confidence: number; // 0-1 confidence score
   detected_elements: string[]; // List of data elements found
-  extracted_data: Record<string, any>; // Flexible data structure
+  extracted_data: Record<string, unknown>; // Flexible data structure
   missing_elements: string[]; // Expected but not found
   ocr_raw: {
     text: string;
@@ -100,14 +100,13 @@ export const SCREENSHOT_DATA_TEMPLATES = {
 };
 
 export class FlexibleScreenshotProcessor {
-  private baseUrl = 'http://localhost:11434';
   
-  async processScreenshot(imageBase64: string, suggestedType?: string): Promise<ScreenshotDataStructure> {
+  async processScreenshot(imageBase64: string, options: Record<string, unknown> = {}) {
     console.log('📸 Processing screenshot with flexible data detection...');
     
     try {
-      // Step 1: Detect screenshot type using LLaVA
-      const detectedType = await this.detectScreenshotType(imageBase64, suggestedType);
+      // Step 1: Detect screenshot type using GPT-4V
+      const detectedType = await this.detectScreenshotType(imageBase64, options.suggestedType as string);
       console.log(`🔍 Detected screenshot type: ${detectedType}`);
       
       // Step 2: Extract data based on detected type
@@ -138,24 +137,32 @@ Look for these indicators:
 
 Respond with ONLY one word: initial_offer, final_total, dashboard_odometer, trip_summary, earnings_summary, map_route, or unknown`;
 
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
         body: JSON.stringify({
-          model: 'llava:latest',
-          prompt,
-          images: [imageBase64],
-          stream: false,
-          options: {
-            temperature: 0.1,
-            num_predict: 20
-          }
+          model: 'gpt-4o',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { 
+                type: 'image_url', 
+                image_url: { url: `data:image/jpeg;base64,${imageBase64}` } 
+              }
+            ]
+          }],
+          max_tokens: 20,
+          temperature: 0.1
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        const detected = result.response.trim().toLowerCase();
+        const detected = result.choices?.[0]?.message?.content?.trim().toLowerCase() || 'unknown';
         
         // Validate detected type
         if (Object.keys(SCREENSHOT_DATA_TEMPLATES).includes(detected)) {
@@ -172,7 +179,7 @@ Respond with ONLY one word: initial_offer, final_total, dashboard_odometer, trip
     }
   }
 
-  private async extractDataForType(imageBase64: string, screenshotType: string): Promise<any> {
+  private async extractDataForType(imageBase64: string, screenshotType: string): Promise<Record<string, unknown>> {
     const template = SCREENSHOT_DATA_TEMPLATES[screenshotType as keyof typeof SCREENSHOT_DATA_TEMPLATES];
     
     if (!template) {
@@ -182,24 +189,33 @@ Respond with ONLY one word: initial_offer, final_total, dashboard_odometer, trip
     const prompt = this.buildExtractionPrompt(screenshotType, template);
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/generate`, {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+        },
         body: JSON.stringify({
-          model: 'llava:latest',
-          prompt,
-          images: [imageBase64],
-          stream: false,
-          options: {
-            temperature: 0,
-            num_predict: 300
-          }
+          model: 'gpt-4o',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { 
+                type: 'image_url', 
+                image_url: { url: `data:image/jpeg;base64,${imageBase64}` } 
+              }
+            ]
+          }],
+          max_tokens: 300,
+          temperature: 0
         })
       });
 
       if (response.ok) {
         const result = await response.json();
-        return this.parseExtractionResponse(result.response, screenshotType);
+        const content = result.choices?.[0]?.message?.content || '';
+        return this.parseExtractionResponse(content, screenshotType);
       }
       
       throw new Error('OCR failed');
@@ -210,8 +226,8 @@ Respond with ONLY one word: initial_offer, final_total, dashboard_odometer, trip
     }
   }
 
-  private buildExtractionPrompt(screenshotType: string, template: any): string {
-    const expectedFields = template.expected_fields.join(', ');
+  private buildExtractionPrompt(screenshotType: string, template: Record<string, unknown>): string {
+    const expectedFields = Array.isArray(template.expected_fields) ? template.expected_fields.join(', ') : 'basic data';
     
     return `Extract data from this ${screenshotType.replace('_', ' ')} screenshot.
 
@@ -229,14 +245,14 @@ ${JSON.stringify(template.data_structure, null, 2)}
 Fill in the values you can clearly see, leave others as null.`;
   }
 
-  private parseExtractionResponse(response: string, screenshotType: string): any {
+  private parseExtractionResponse(response: string, screenshotType: string): Record<string, unknown> {
     try {
       // Try to extract JSON from response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-    } catch (parseError) {
+    } catch {
       console.warn('⚠️ Could not parse extraction response');
     }
     
@@ -244,13 +260,13 @@ Fill in the values you can clearly see, leave others as null.`;
     return this.extractBasicNumbers(response, screenshotType);
   }
 
-  private extractBasicNumbers(text: string, screenshotType: string): any {
+  private extractBasicNumbers(text: string, screenshotType: string): Record<string, unknown> {
     const numbers = text.match(/\$?(\d+\.?\d*)/g)?.map(n => parseFloat(n.replace('$', ''))) || [];
     const template = SCREENSHOT_DATA_TEMPLATES[screenshotType as keyof typeof SCREENSHOT_DATA_TEMPLATES];
     
     if (!template) return {};
     
-    const result: any = { ...template.data_structure };
+    const result: Record<string, unknown> = { ...template.data_structure as Record<string, unknown> };
     
     // Basic heuristic assignment based on screenshot type
     switch (screenshotType) {
@@ -279,7 +295,7 @@ Fill in the values you can clearly see, leave others as null.`;
     return result;
   }
 
-  private extractGenericData(imageBase64: string): any {
+  private extractGenericData(): Record<string, unknown> {
     // Fallback generic extraction
     return {
       raw_text: 'OCR extraction failed',
@@ -288,7 +304,7 @@ Fill in the values you can clearly see, leave others as null.`;
     };
   }
 
-  private structureDataForType(extractedData: any, screenshotType: string): ScreenshotDataStructure {
+  private structureDataForType(extractedData: Record<string, unknown>, screenshotType: string): ScreenshotDataStructure {
     const template = SCREENSHOT_DATA_TEMPLATES[screenshotType as keyof typeof SCREENSHOT_DATA_TEMPLATES];
     
     if (!template) {
@@ -314,20 +330,20 @@ Fill in the values you can clearly see, leave others as null.`;
     const confidence = requiredFound.length / template.required_fields.length;
 
     return {
-      screenshot_type: screenshotType as any,
+      screenshot_type: (screenshotType as ScreenshotDataStructure['screenshot_type']) || 'unknown',
       data_confidence: confidence,
       detected_elements: detectedElements,
       extracted_data: extractedData,
       missing_elements: missingElements,
       ocr_raw: {
-        text: extractedData.raw_text || '',
-        numbers: extractedData.numbers_found || [],
+        text: (typeof extractedData.raw_text === 'string' ? extractedData.raw_text : ''),
+        numbers: (Array.isArray(extractedData.numbers_found) ? extractedData.numbers_found : []),
         confidence: confidence
       }
     };
   }
 
-  private createFallbackStructure(imageBase64: string): ScreenshotDataStructure {
+  private createFallbackStructure(): ScreenshotDataStructure {
     return {
       screenshot_type: 'unknown',
       data_confidence: 0.1,
@@ -346,10 +362,10 @@ Fill in the values you can clearly see, leave others as null.`;
   }
 
   // Method to combine data from multiple screenshots of the same trip
-  static combineScreenshotData(screenshots: ScreenshotDataStructure[]): any {
+  static combineScreenshotData(screenshots: ScreenshotDataStructure[]): Record<string, unknown> {
     console.log(`🔄 Combining data from ${screenshots.length} screenshots...`);
     
-    const combinedData: any = {
+    const combinedData: Record<string, unknown> = {
       trip_type: 'combined',
       data_sources: screenshots.map(s => s.screenshot_type),
       combined_confidence: 0,
@@ -371,12 +387,15 @@ Fill in the values you can clearly see, leave others as null.`;
     combinedData.combined_confidence = processedCount > 0 ? totalConfidence / processedCount : 0;
 
     // Calculate profit if we have enough data
-    if (combinedData.total_earnings && combinedData.distance) {
+    if (typeof combinedData.total_earnings === 'number' && typeof combinedData.distance === 'number') {
       const fuelCost = (combinedData.distance * 0.18) || 0; // Honda Odyssey fuel cost
       combinedData.estimated_profit = combinedData.total_earnings - fuelCost;
     }
 
-    console.log(`✅ Combined data confidence: ${(combinedData.combined_confidence * 100).toFixed(1)}%`);
+    const confidencePercent = typeof combinedData.combined_confidence === 'number' 
+      ? (combinedData.combined_confidence * 100).toFixed(1) 
+      : '0.0';
+    console.log(`✅ Combined data confidence: ${confidencePercent}%`);
     
     return combinedData;
   }

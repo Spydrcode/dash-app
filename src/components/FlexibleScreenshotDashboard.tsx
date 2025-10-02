@@ -11,14 +11,14 @@ interface ScreenshotData {
   data_confidence: number;
   detected_elements: string[];
   missing_elements: string[];
-  extracted_data: Record<string, any>;
+  extracted_data: Record<string, unknown>;
   created_at: string;
 }
 
 interface TripCombinedData {
   trip_id: string;
   screenshots: ScreenshotData[];
-  combined_data: Record<string, any>;
+  combined_data: Record<string, unknown>;
   completeness_score: number;
 }
 
@@ -26,7 +26,7 @@ const FlexibleScreenshotDashboard: React.FC = () => {
   const [screenshots, setScreenshots] = useState<ScreenshotData[]>([]);
   const [combinedTrips, setCombinedTrips] = useState<TripCombinedData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTrip, setSelectedTrip] = useState<string | null>(null);
+  // Removed unused selectedTrip state
 
   useEffect(() => {
     fetchScreenshotData();
@@ -38,7 +38,7 @@ const FlexibleScreenshotDashboard: React.FC = () => {
       
       // Fetch recent screenshots
       const screenshotsResponse = await fetch('/api/dashboard-stats'); // We'll extend this
-      const screenshotsData = await screenshotsResponse.json();
+      await screenshotsResponse.json();
       
       // For now, create mock data to demonstrate the concept
       const mockScreenshots: ScreenshotData[] = [
@@ -232,7 +232,7 @@ const FlexibleScreenshotDashboard: React.FC = () => {
                         <div key={element} className="flex items-center justify-between text-sm">
                           <span className="text-gray-700">{element.replace('_', ' ')}</span>
                           <span className="text-green-600 font-mono">
-                            {screenshot.extracted_data[element] || 'N/A'}
+                            {String(screenshot.extracted_data[element] || 'N/A')}
                           </span>
                         </div>
                       ))}
@@ -342,15 +342,15 @@ const FlexibleScreenshotDashboard: React.FC = () => {
                   <h4 className="font-medium text-gray-700 mb-2">💡 Trip Insights</h4>
                   <div className="flex flex-wrap gap-2">
                     <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">
-                      Profit: ${trip.combined_data.estimated_profit?.toFixed(2) || '0.00'}
+                      Profit: ${typeof trip.combined_data.estimated_profit === 'number' ? trip.combined_data.estimated_profit.toFixed(2) : '0.00'}
                     </span>
-                    {trip.combined_data.tip_variance && (
+                    {typeof trip.combined_data.tip_variance === 'number' && (
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                         Tip: ${trip.combined_data.tip_variance.toFixed(2)}
                       </span>
                     )}
                     <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                      Rate: ${(trip.combined_data.total_earnings / trip.combined_data.distance).toFixed(2)}/mile
+                      Rate: ${typeof trip.combined_data.total_earnings === 'number' && typeof trip.combined_data.distance === 'number' && trip.combined_data.distance > 0 ? (trip.combined_data.total_earnings / trip.combined_data.distance).toFixed(2) : 'N/A'}/mile
                     </span>
                   </div>
                 </div>
@@ -366,7 +366,7 @@ const FlexibleScreenshotDashboard: React.FC = () => {
             <div>
               <h3 className="font-medium text-gray-700 mb-2">✨ Smart Detection</h3>
               <ul className="text-sm text-gray-600 space-y-1">
-                <li>• LLaVA analyzes each screenshot to determine type</li>
+                <li>• GPT-4V analyzes each screenshot to determine type</li>
                 <li>• Extracts only the data present in that specific image</li>
                 <li>• Creates JSON with null values for missing data</li>
                 <li>• Provides confidence score for each extraction</li>

@@ -2,7 +2,7 @@
 // This addresses the core issue: Wrong AI insights due to poor data extraction
 
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Environment validation
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -15,7 +15,7 @@ if (!supabaseUrl || !supabaseKey) {
 const supabaseAdmin = createClient(supabaseUrl!, supabaseKey!);
 
 // Multi-Stage Pipeline to fix data accuracy issues
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     console.log('🔧 FIXING DATA EXTRACTION PIPELINE...');
     
@@ -168,18 +168,9 @@ export async function POST(request: NextRequest) {
 }
 
 // Helper function to extract data with GPT-4V
-async function extractWithGPTVision(screenshot: any) {
+async function extractWithGPTVision(screenshot: Record<string, unknown>) {
     try {
-      const prompt = `Extract rideshare data from this ${screenshot.screenshot_type} screenshot.
-Return only the JSON data:
-{
-  "driver_earnings": [dollar amount as number],
-  "distance": [miles as number],  
-  "total_trips": [number of trips],
-  "tips": [tip amount as number or 0],
-  "pickup_location": "[location if visible]",
-  "destination": "[location if visible]"
-}`;
+      // Extract rideshare data from screenshot - using mock data for now
 
       // In production, load actual image from screenshot.image_path
       // For now, simulate successful extraction based on screenshot type
@@ -223,7 +214,7 @@ async function compileAllData() {
       let totalEarnings = 0;
       let totalDistance = 0;
       let totalTrips = 0;
-      const dailyData: any = {};
+      const dailyData: Record<string, Record<string, number>> = {};
 
       allScreenshots?.forEach(screenshot => {
         const data = screenshot.extracted_data;
@@ -264,29 +255,19 @@ async function compileAllData() {
 }
 
 // Generate corrected insights with DeepSeek-R1
-async function generateCorrectedInsights(compiledData: any) {
+async function generateCorrectedInsights(compiledData: Record<string, unknown>) {
     try {
-      const insightsPrompt = `Based on this accurately extracted rideshare data, provide realistic insights:
-
-${JSON.stringify(compiledData, null, 2)}
-
-Generate insights focusing on:
-- Actual performance based on real extracted data
-- Realistic trip counts and earnings
-- Proper efficiency calculations
-- Actionable recommendations
-
-Return concise, accurate insights.`;
+      // Generate insights based on extracted data
 
       // Simulate DeepSeek-R1 response with realistic insights
       return {
-        performance_score: Math.min(Math.round((compiledData.avg_per_trip || 0) * 5), 100),
+        performance_score: Math.min(Math.round(((compiledData.avg_per_trip as number) || 0) * 5), 100),
         total_trips_actual: compiledData.total_trips,
         total_earnings_actual: compiledData.total_earnings,
         key_insights: [
           `Processed ${compiledData.total_trips} actual trips from extracted screenshot data`,
-          `Total earnings of $${compiledData.total_earnings?.toFixed(2)} across ${compiledData.unique_days} active days`,
-          `Average of $${compiledData.avg_per_trip?.toFixed(2)} per trip with proper data extraction`
+          `Total earnings of $${(compiledData.total_earnings as number)?.toFixed(2)} across ${compiledData.unique_days} active days`,
+          `Average of $${(compiledData.avg_per_trip as number)?.toFixed(2)} per trip with proper data extraction`
         ],
         data_source: 'llava_extracted_screenshots',
         accuracy: 'HIGH - Based on proper OCR extraction',
@@ -299,7 +280,7 @@ Return concise, accurate insights.`;
 }
 
 // Check pipeline status
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Environment check
     if (!supabaseUrl || !supabaseKey) {

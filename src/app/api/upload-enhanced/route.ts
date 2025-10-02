@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const files = formData.getAll("files") as File[];
     const screenshotType =
       (formData.get("screenshotType") as string) || "other";
-    const tripId = formData.get("tripId") as string;
+    const tripId = (formData.get("tripId") as string) || "anonymous";
     const driverId =
       (formData.get("driverId") as string) ||
       "550e8400-e29b-41d4-a716-446655440000";
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
           failCount > 0 ? `, ${failCount} failed` : ""
         }`,
       },
-      nextSteps: getNextStepRecommendations(screenshotType, currentTripId),
+      nextSteps: getNextStepRecommendations(screenshotType),
     });
   } catch (error) {
     console.error("Enhanced upload error:", error);
@@ -198,7 +198,7 @@ async function updateTripStatus(tripId: number) {
   }
 }
 
-function getNextStepRecommendations(screenshotType: string, tripId: string) {
+function getNextStepRecommendations(screenshotType: string) {
   const recommendations = [];
 
   switch (screenshotType) {

@@ -1,6 +1,8 @@
 // Quick Database Check Script
-require("dotenv").config({ path: ".env.local" });
-const { createClient } = require("@supabase/supabase-js");
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
 
 console.log("🔧 Environment check:");
 console.log(
@@ -35,7 +37,7 @@ async function checkDatabase() {
   try {
     // Test basic connection
     console.log("📡 Testing Supabase connection...");
-    const { data: testQuery, error: testError } = await supabase
+    const { error: testError } = await supabase
       .from("trips")
       .select("count")
       .limit(1);
@@ -59,7 +61,7 @@ async function checkDatabase() {
 
     for (const table of tables) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from(table)
           .select("count")
           .limit(1);
@@ -70,7 +72,7 @@ async function checkDatabase() {
           console.log(`✅ Table '${table}' exists`);
           tablesExist++;
         }
-      } catch (err) {
+      } catch {
         console.log(`❌ Table '${table}' does NOT exist`);
       }
     }

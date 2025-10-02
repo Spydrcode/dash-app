@@ -1,5 +1,6 @@
-const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config({ path: ".env.local" });
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -66,6 +67,11 @@ async function testSchema() {
         original_filename,
         ...basicData
       } = testData;
+      // Unused variables for schema testing
+      void file_hash;
+      void perceptual_hash;
+      void file_size;
+      void original_filename;
       const { data: basicInsert, error: basicError } = await supabase
         .from("trip_screenshots")
         .insert(basicData)

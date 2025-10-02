@@ -11,7 +11,6 @@ export async function POST(request: NextRequest) {
       fill_date,
       gas_station,
       fuel_type,
-      receipt_image,
     } = await request.json();
 
     console.log("Adding fuel record:", {

@@ -1,5 +1,5 @@
 // Simple Node.js script to test the process-trip API
-const fetch = require("node-fetch");
+import fetch from "node-fetch";
 
 async function testProcessTrip() {
   try {

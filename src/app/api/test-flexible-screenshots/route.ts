@@ -1,10 +1,10 @@
 // Test Flexible Screenshot Processing System
 // Demonstrates how different screenshots contribute different data
 
-import { FlexibleScreenshotProcessor, SCREENSHOT_DATA_TEMPLATES } from '@/lib/flexible-screenshot-processor';
-import { NextRequest, NextResponse } from 'next/server';
+import { FlexibleScreenshotProcessor, SCREENSHOT_DATA_TEMPLATES, type ScreenshotDataStructure } from '@/lib/flexible-screenshot-processor';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🧪 Testing flexible screenshot processing system...');
 
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Test combining multiple screenshots
     console.log('\n🔄 Testing screenshot combination...');
     const combinedData = FlexibleScreenshotProcessor.combineScreenshotData(
-      results.map(r => r.processing_result)
+      results.map(r => r.processing_result as ScreenshotDataStructure)
     );
 
     return NextResponse.json({
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
 }
 
 // Simulate screenshot processing without actual image
-async function simulateScreenshotProcessing(processor: FlexibleScreenshotProcessor, scenario: any) {
+async function simulateScreenshotProcessing(processor: FlexibleScreenshotProcessor, scenario: Record<string, unknown>) {
   const template = SCREENSHOT_DATA_TEMPLATES[scenario.type as keyof typeof SCREENSHOT_DATA_TEMPLATES];
   
   if (!template) {
@@ -113,11 +113,12 @@ async function simulateScreenshotProcessing(processor: FlexibleScreenshotProcess
   }
 
   // Simulate OCR extraction based on mock text
-  const mockExtractedData: any = { ...template.data_structure };
+  const mockExtractedData: Record<string, unknown> = { ...template.data_structure };
   
   // Extract values from mock OCR text
-  const text = scenario.mockOcrText.toLowerCase();
-  const numbers = scenario.mockOcrText.match(/\$?(\d+\.?\d*)/g)?.map((n: string) => parseFloat(n.replace('$', ''))) || [];
+  const mockOcrText = typeof scenario.mockOcrText === 'string' ? scenario.mockOcrText : '';
+  const text = mockOcrText.toLowerCase();
+  const numbers = mockOcrText.match(/\$?(\d+\.?\d*)/g)?.map((n: string) => parseFloat(n.replace('$', ''))) || [];
 
   // Type-specific extraction simulation
   switch (scenario.type) {

@@ -1,12 +1,12 @@
 // Diagnostic endpoint to check screenshot processing pipeline
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 DIAGNOSING SCREENSHOT PROCESSING PIPELINE...');
     
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const tripsWithScreenshots = trips?.filter(t => t.trip_screenshots && t.trip_screenshots.length > 0) || [];
     const tripsWithProcessedScreenshots = tripsWithScreenshots.filter(trip => 
-      trip.trip_screenshots.some((s: any) => s.is_processed)
+      trip.trip_screenshots.some((s: { is_processed?: boolean }) => s.is_processed)
     );
 
     console.log(`🚗 TRIP ANALYSIS:`);
@@ -86,22 +86,25 @@ export async function GET(request: NextRequest) {
 
     console.log(`🔍 SAMPLE EXTRACTED DATA:`, extractedDataSamples);
 
-    // Step 5: Check if LLaVA OCR service is running
+    // Step 5: Check OpenAI GPT-4V service availability
     let ocrServiceStatus = 'UNKNOWN';
     try {
-      const testOCR = await fetch('http://localhost:11434/api/tags', {
+      const testOCR = await fetch('https://api.openai.com/v1/models', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json' 
+        }
       });
       
       if (testOCR.ok) {
         const models = await testOCR.json();
-        const hasLlava = models.models?.some((m: any) => m.name.includes('llava'));
-        ocrServiceStatus = hasLlava ? 'RUNNING_WITH_LLAVA' : 'RUNNING_NO_LLAVA';
+        const hasGpt4o = models.data?.some((m: { id: string }) => m.id.includes('gpt-4o'));
+        ocrServiceStatus = hasGpt4o ? 'RUNNING_WITH_GPT4V' : 'OPENAI_CONNECTED_NO_GPT4V';
       } else {
-        ocrServiceStatus = 'OLLAMA_DOWN';
+        ocrServiceStatus = 'OPENAI_API_ERROR';
       }
-    } catch (error) {
+    } catch {
       ocrServiceStatus = 'OLLAMA_UNREACHABLE';
       console.log('🔧 OCR Service (localhost:11434) is not reachable');
     }

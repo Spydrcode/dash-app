@@ -1,18 +1,18 @@
 // Fixed Data Pipeline API - Proper structure to fix AI insight accuracy
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
 // Helper functions for data extraction
-async function extractWithLLaVA(screenshot: any) {
+async function extractWithLLaVA(screenshot: Record<string, unknown>) {
   try {
     console.log(`👁️ Extracting data from ${screenshot.screenshot_type} screenshot ${screenshot.id}`);
     
     // Simulate LLaVA extraction with realistic data based on screenshot type
-    const mockData: Record<string, any> = {
+    const mockData: Record<string, Record<string, unknown>> = {
       'dashboard': {
         driver_earnings: Math.round((Math.random() * 150 + 100) * 100) / 100,
         distance: Math.round((Math.random() * 80 + 40) * 10) / 10,
@@ -40,7 +40,7 @@ async function extractWithLLaVA(screenshot: any) {
       tips: 2.50
     };
 
-    return mockData[screenshot.screenshot_type] || defaultData;
+    return mockData[screenshot.screenshot_type as string] || defaultData;
   } catch (error) {
     console.error('LLaVA extraction failed:', error);
     return null;
@@ -60,7 +60,7 @@ async function compileAllData() {
     let totalEarnings = 0;
     let totalDistance = 0;
     let totalTrips = 0;
-    const dailyData: Record<string, any> = {};
+    const dailyData: Record<string, Record<string, number>> = {};
 
     allScreenshots?.forEach(screenshot => {
       const data = screenshot.extracted_data;
@@ -100,12 +100,12 @@ async function compileAllData() {
   }
 }
 
-async function generateCorrectedInsights(compiledData: any) {
+async function generateCorrectedInsights(compiledData: Record<string, unknown>) {
   try {
     console.log('🧠 Generating corrected insights with DeepSeek-R1...');
     
     return {
-      performance_score: Math.min(Math.round((compiledData.avg_per_trip || 0) * 7), 100),
+      performance_score: Math.min(Math.round(((compiledData.avg_per_trip as number) || 0) * 7), 100),
       total_trips_actual: compiledData.total_trips,
       total_earnings_actual: compiledData.total_earnings,
       total_distance_actual: compiledData.total_distance,
@@ -116,13 +116,13 @@ async function generateCorrectedInsights(compiledData: any) {
         `Net profit of approximately $${compiledData.profit} after expenses`
       ],
       recommendations: [
-        compiledData.avg_per_trip < 10 ? 'Focus on higher-paying trips to increase per-trip average' : 'Good per-trip earnings - maintain current strategy',
-        compiledData.total_distance > 0 ? `Fuel efficiency: $${(compiledData.total_earnings / compiledData.total_distance).toFixed(2)} per mile` : 'Track distance for better efficiency analysis'
+        (compiledData.avg_per_trip as number) < 10 ? 'Focus on higher-paying trips to increase per-trip average' : 'Good per-trip earnings - maintain current strategy',
+        (compiledData.total_distance as number) > 0 ? `Fuel efficiency: $${((compiledData.total_earnings as number) / (compiledData.total_distance as number)).toFixed(2)} per mile` : 'Track distance for better efficiency analysis'
       ],
       data_source: 'llava_extracted_screenshots',
       accuracy: 'HIGH - Based on proper OCR extraction',
       model_used: 'deepseek-r1:latest',
-      extraction_quality: compiledData.total_trips > 10 ? 'EXCELLENT' : 'GOOD'
+      extraction_quality: (compiledData.total_trips as number) > 10 ? 'EXCELLENT' : 'GOOD'
     };
   } catch (error) {
     console.error('Insights generation failed:', error);
@@ -131,7 +131,7 @@ async function generateCorrectedInsights(compiledData: any) {
 }
 
 // Main API endpoints
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     console.log('🔧 STARTING DATA PIPELINE FIX...');
     
@@ -184,9 +184,9 @@ export async function POST(request: NextRequest) {
             .eq('id', screenshot.id);
 
           successfulExtractions++;
-          totalEarningsFound += extractedData.driver_earnings || 0;
-          totalTripsFound += extractedData.total_trips || 1;
-          totalDistanceFound += extractedData.distance || 0;
+          totalEarningsFound += typeof extractedData.driver_earnings === 'number' ? extractedData.driver_earnings : 0;
+          totalTripsFound += typeof extractedData.total_trips === 'number' ? extractedData.total_trips : 1;
+          totalDistanceFound += typeof extractedData.distance === 'number' ? extractedData.distance : 0;
 
           console.log(`✅ Screenshot ${screenshot.id}: $${extractedData.driver_earnings}, ${extractedData.distance}mi, ${extractedData.total_trips} trips`);
         }
@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Check current data extraction status
     const { data: screenshots } = await supabaseAdmin

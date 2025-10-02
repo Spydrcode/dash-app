@@ -6,10 +6,10 @@ import { supabaseAdmin } from './supabase';
 
 export interface TripData {
   id: string;
-  trip_data: any;
-  trip_screenshots?: any[];
+  trip_data: Record<string, unknown>;
+  trip_screenshots?: Record<string, unknown>[];
   created_at: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export class GPTOnlyAICoordinator {
@@ -20,7 +20,7 @@ export class GPTOnlyAICoordinator {
   }
 
   // Main method: Process new screenshots and update cumulative insights
-  async processNewScreenshotsAndUpdateInsights(newScreenshots: any[]): Promise<any> {
+  async processNewScreenshotsAndUpdateInsights(newScreenshots: Record<string, unknown>[]): Promise<Record<string, unknown>> {
     console.log(`🚀 GPT-ONLY COORDINATOR: Processing ${newScreenshots.length} new screenshots...`);
 
     try {
@@ -34,23 +34,23 @@ export class GPTOnlyAICoordinator {
         console.log(`👁️ Processing screenshot ${screenshot.id} with GPT-4o...`);
         
         // Load image and process with GPT-4o (mock for now)
-        const imageBase64 = await this.loadImageAsBase64(screenshot.image_path);
+                const imageBase64 = await this.loadImageAsBase64();
         const result = await this.gptService.processScreenshotWithGPT4(
           imageBase64, 
-          screenshot.screenshot_type,
-          screenshot.id
+          screenshot.screenshot_type as string,
+          screenshot.id as string
         );
 
         if (result.extracted_data && !result.error) {
           processedScreenshots.push(result);
           
           // Accumulate data
-          totalNewEarnings += result.extracted_data.driver_earnings || 0;
-          totalNewDistance += result.extracted_data.distance || 0;
-          newTripsCount += result.extracted_data.total_trips || 1;
+          totalNewEarnings += (result.extracted_data as Record<string, unknown>).driver_earnings as number || 0;
+          totalNewDistance += (result.extracted_data as Record<string, unknown>).distance as number || 0;
+          newTripsCount += (result.extracted_data as Record<string, unknown>).total_trips as number || 1;
 
           // Update screenshot record with GPT results
-          await this.updateScreenshotRecord(screenshot.id, result);
+          await this.updateScreenshotRecord(screenshot.id as string, result);
         }
       }
 
@@ -62,12 +62,12 @@ export class GPTOnlyAICoordinator {
 
       // STEP 3: Calculate updated totals (additive approach)
       const updatedTotals = {
-        total_trips: (existingInsights?.total_trips || 0) + newTripsCount,
-        total_earnings: (existingInsights?.total_earnings || 0) + totalNewEarnings,
-        total_distance: (existingInsights?.total_distance || 0) + totalNewDistance,
+        total_trips: ((existingInsights?.total_trips as number) || 0) + newTripsCount,
+        total_earnings: ((existingInsights?.total_earnings as number) || 0) + totalNewEarnings,
+        total_distance: ((existingInsights?.total_distance as number) || 0) + totalNewDistance,
         total_profit: 0, // Will calculate below
         active_days: await this.calculateActiveDays(),
-        screenshots_count: (existingInsights?.screenshots_count || 0) + processedScreenshots.length
+        screenshots_count: ((existingInsights?.screenshots_count as number) || 0) + processedScreenshots.length
       };
 
       // Calculate profit (70% of earnings minus fuel costs)
@@ -77,16 +77,16 @@ export class GPTOnlyAICoordinator {
 
       // STEP 4: Generate NEW insights with GPT-4 Turbo (only if significant change)
       let newInsights;
-      if (this.shouldRegenerateInsights(existingInsights, updatedTotals)) {
+      if (this.shouldRegenerateInsights(existingInsights || {}, updatedTotals)) {
         console.log(`🧠 Regenerating insights with GPT-4 Turbo due to significant data change...`);
-        newInsights = await this.gptService.generateInsightsWithGPT4({
+        newInsights = await this.gptService.generateInsights({
           totals: updatedTotals,
           new_screenshots: processedScreenshots.length,
           timeframe: 'cumulative'
-        });
+        }, { analysisType: 'cumulative' });
       } else {
         console.log(`♻️ Using existing insights (minimal data change) + updating key metrics...`);
-        newInsights = this.updateExistingInsights(existingInsights?.insights_data, updatedTotals);
+        newInsights = this.updateExistingInsights((existingInsights?.insights_data as Record<string, unknown>) || {}, updatedTotals);
       }
 
       // STEP 5: Save updated cumulative insights
@@ -114,15 +114,15 @@ export class GPTOnlyAICoordinator {
           last_updated: new Date().toISOString()
         },
         token_usage: {
-          session_tokens: tokenSummary.current_session?.tokens || 0,
-          session_cost: tokenSummary.current_session?.cost || 0,
+          session_tokens: ((tokenSummary.current_session as Record<string, unknown>)?.tokens as number) || 0,
+          session_cost: ((tokenSummary.current_session as Record<string, unknown>)?.cost as number) || 0,
           total_30day_tokens: tokenSummary.total_tokens,
           total_30day_cost: tokenSummary.total_cost,
           requests_by_model: tokenSummary.requests_by_model
         },
         performance_breakdown: this.calculatePerformanceBreakdown(updatedTotals),
         time_analysis: this.generateRealisticTimeAnalysis(updatedTotals),
-        recommendations: this.generateSmartRecommendations(updatedTotals, newInsights)
+        recommendations: this.generateSmartRecommendations(updatedTotals)
       };
 
     } catch (error) {
@@ -136,7 +136,7 @@ export class GPTOnlyAICoordinator {
   }
 
   // Get existing insights without regenerating (for dashboard display)
-  async getCurrentInsights(): Promise<any> {
+  async getCurrentInsights(): Promise<Record<string, unknown>> {
     try {
       const cumulativeData = await this.getCumulativeInsights();
       const tokenSummary = await this.gptService.getTokenUsageSummary();
@@ -156,11 +156,11 @@ export class GPTOnlyAICoordinator {
           total_profit: cumulativeData.total_profit,
           total_distance: cumulativeData.total_distance,
           performance_score: cumulativeData.performance_score,
-          performance_category: this.getPerformanceCategory(cumulativeData.performance_score),
-          profit_margin: cumulativeData.total_earnings > 0 ? (cumulativeData.total_profit / cumulativeData.total_earnings) * 100 : 0,
+          performance_category: this.getPerformanceCategory((cumulativeData.performance_score as number) || 0),
+          profit_margin: ((cumulativeData as Record<string, unknown>).total_earnings as number) > 0 ? (((cumulativeData as Record<string, unknown>).total_profit as number) / ((cumulativeData as Record<string, unknown>).total_earnings as number)) * 100 : 0,
           active_days: cumulativeData.active_days,
-          avg_daily_profit: cumulativeData.total_profit / Math.max(cumulativeData.active_days, 1),
-          avg_profit_per_trip: cumulativeData.total_trips > 0 ? cumulativeData.total_profit / cumulativeData.total_trips : 0
+          avg_daily_profit: ((cumulativeData as Record<string, unknown>).total_profit as number) / Math.max(((cumulativeData as Record<string, unknown>).active_days as number), 1),
+          avg_profit_per_trip: ((cumulativeData as Record<string, unknown>).total_trips as number) > 0 ? ((cumulativeData as Record<string, unknown>).total_profit as number) / ((cumulativeData as Record<string, unknown>).total_trips as number) : 0
         },
         ai_insights: cumulativeData.insights_data,
         performance_breakdown: this.calculatePerformanceBreakdown(cumulativeData),
@@ -175,8 +175,8 @@ export class GPTOnlyAICoordinator {
         last_updated: cumulativeData.last_updated,
         screenshots_processed: cumulativeData.screenshots_count
       };
-    } catch (error) {
-      console.error('Failed to get current insights:', error);
+    } catch {
+      console.error('Failed to get current insights');
       return {
         summary: this.getEmptySummary(),
         error: 'Failed to retrieve insights'
@@ -185,7 +185,7 @@ export class GPTOnlyAICoordinator {
   }
 
   // Reprocess ALL screenshots with GPT-4o (for migration/refresh)
-  async reprocessAllScreenshotsWithGPT(): Promise<any> {
+  async reprocessAllScreenshotsWithGPT(): Promise<Record<string, unknown>> {
     console.log(`🔄 REPROCESSING ALL SCREENSHOTS WITH GPT-4O...`);
 
     try {
@@ -221,9 +221,9 @@ export class GPTOnlyAICoordinator {
         const batchResults = await this.processNewScreenshotsAndUpdateInsights(batch);
         
         if (batchResults.success) {
-          totalProcessed += batchResults.processing_summary.new_screenshots_processed;
-          totalTokensUsed += batchResults.token_usage.session_tokens || 0;
-          totalCost += batchResults.token_usage.session_cost || 0;
+          totalProcessed += ((batchResults as Record<string, unknown>).processing_summary as Record<string, unknown>).new_screenshots_processed as number;
+          totalTokensUsed += (((batchResults as Record<string, unknown>).token_usage as Record<string, unknown>).session_tokens as number) || 0;
+          totalCost += (((batchResults as Record<string, unknown>).token_usage as Record<string, unknown>).session_cost as number) || 0;
         }
 
         // Brief pause between batches
@@ -255,13 +255,13 @@ export class GPTOnlyAICoordinator {
   }
 
   // Private helper methods
-  private async loadImageAsBase64(imagePath: string): Promise<string> {
+  private async loadImageAsBase64(): Promise<string> {
     // Mock implementation - in production, load actual image from storage
     // For now, return a small placeholder base64
     return 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
   }
 
-  private async updateScreenshotRecord(screenshotId: string, result: any): Promise<void> {
+  private async updateScreenshotRecord(screenshotId: string, result: Record<string, unknown>): Promise<void> {
     try {
       await supabaseAdmin
         .from('trip_screenshots')
@@ -277,7 +277,7 @@ export class GPTOnlyAICoordinator {
     }
   }
 
-  private async getCumulativeInsights(): Promise<any> {
+  private async getCumulativeInsights(): Promise<Record<string, unknown> | null> {
     try {
       const { data } = await supabaseAdmin
         .from('cumulative_insights')
@@ -286,12 +286,12 @@ export class GPTOnlyAICoordinator {
         .single();
 
       return data;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }
 
-  private async saveCumulativeInsights(totals: any, insights: any): Promise<void> {
+  private async saveCumulativeInsights(totals: Record<string, unknown>, insights: Record<string, unknown>): Promise<void> {
     try {
       await supabaseAdmin
         .from('cumulative_insights')
@@ -308,7 +308,7 @@ export class GPTOnlyAICoordinator {
         })
         .eq('user_id', 'default_user');
 
-      console.log(`💾 Saved cumulative insights: ${totals.total_trips} trips, $${totals.total_profit.toFixed(2)} profit`);
+      console.log(`💾 Saved cumulative insights: ${(totals as Record<string, unknown>).total_trips} trips, $${((totals as Record<string, unknown>).total_profit as number).toFixed(2)} profit`);
     } catch (error) {
       console.error('Failed to save cumulative insights:', error);
     }
@@ -357,22 +357,22 @@ export class GPTOnlyAICoordinator {
       });
 
       return uniqueDates.size;
-    } catch (error) {
+    } catch (_error) {
       return 1; // Fallback
     }
   }
 
-  private shouldRegenerateInsights(existingInsights: any, newTotals: any): boolean {
+  private shouldRegenerateInsights(existingInsights: Record<string, unknown>, newTotals: Record<string, unknown>): boolean {
     if (!existingInsights) return true;
 
     // Regenerate if trips increased by 20% or earnings by 25%
-    const tripsIncrease = newTotals.total_trips / Math.max(existingInsights.total_trips, 1);
-    const earningsIncrease = newTotals.total_earnings / Math.max(existingInsights.total_earnings, 1);
+    const tripsIncrease = ((newTotals as Record<string, unknown>).total_trips as number) / Math.max(((existingInsights as Record<string, unknown>).total_trips as number), 1);
+    const earningsIncrease = ((newTotals as Record<string, unknown>).total_earnings as number) / Math.max(((existingInsights as Record<string, unknown>).total_earnings as number), 1);
 
     return tripsIncrease >= 1.2 || earningsIncrease >= 1.25;
   }
 
-  private updateExistingInsights(existingInsights: any, newTotals: any): any {
+  private updateExistingInsights(existingInsights: Record<string, unknown>, newTotals: Record<string, unknown>): Record<string, unknown> {
     if (!existingInsights) {
       return {
         performance_score: 50,
@@ -387,14 +387,14 @@ export class GPTOnlyAICoordinator {
     const updatedInsights = { ...existingInsights };
     
     // Update performance score based on new profit per trip
-    const avgProfitPerTrip = newTotals.total_trips > 0 ? newTotals.total_profit / newTotals.total_trips : 0;
+    const avgProfitPerTrip = ((newTotals as Record<string, unknown>).total_trips as number) > 0 ? ((newTotals as Record<string, unknown>).total_profit as number) / ((newTotals as Record<string, unknown>).total_trips as number) : 0;
     updatedInsights.performance_score = Math.min(Math.max(avgProfitPerTrip * 5, 20), 95);
 
     // Add note about incremental update
     if (updatedInsights.key_insights) {
       updatedInsights.key_insights = [
-        `Updated analysis: ${newTotals.total_trips} trips, $${newTotals.total_profit.toFixed(2)} profit`,
-        ...updatedInsights.key_insights.slice(1)
+        `Updated analysis: ${(newTotals as Record<string, unknown>).total_trips} trips, $${((newTotals as Record<string, unknown>).total_profit as number).toFixed(2)} profit`,
+        ...((updatedInsights as Record<string, unknown>).key_insights as unknown[]).slice(1)
       ];
     }
 
@@ -404,21 +404,21 @@ export class GPTOnlyAICoordinator {
     return updatedInsights;
   }
 
-  private calculatePerformanceBreakdown(totals: any) {
+  private calculatePerformanceBreakdown(totals: Record<string, unknown>) {
     return {
-      earnings_per_mile: totals.total_distance > 0 ? totals.total_earnings / totals.total_distance : 0,
-      profit_per_mile: totals.total_distance > 0 ? totals.total_profit / totals.total_distance : 0,
-      average_trip_profit: totals.total_trips > 0 ? totals.total_profit / totals.total_trips : 0,
-      fuel_cost_ratio: totals.total_earnings > 0 ? ((totals.total_distance * 0.18) / totals.total_earnings) : 0,
+      earnings_per_mile: ((totals as Record<string, unknown>).total_distance as number) > 0 ? ((totals as Record<string, unknown>).total_earnings as number) / ((totals as Record<string, unknown>).total_distance as number) : 0,
+      profit_per_mile: ((totals as Record<string, unknown>).total_distance as number) > 0 ? ((totals as Record<string, unknown>).total_profit as number) / ((totals as Record<string, unknown>).total_distance as number) : 0,
+      average_trip_profit: ((totals as Record<string, unknown>).total_trips as number) > 0 ? ((totals as Record<string, unknown>).total_profit as number) / ((totals as Record<string, unknown>).total_trips as number) : 0,
+      fuel_cost_ratio: ((totals as Record<string, unknown>).total_earnings as number) > 0 ? (((totals as Record<string, unknown>).total_distance as number) * 0.18) / ((totals as Record<string, unknown>).total_earnings as number) : 0,
       ai_generated: true,
       agent: 'GPT-Only Performance Calculator'
     };
   }
 
-  private generateRealisticTimeAnalysis(totals: any) {
+  private generateRealisticTimeAnalysis(totals: Record<string, unknown>) {
     // Generate realistic time analysis based on totals
-    const avgTripsPerDay = totals.active_days > 0 ? totals.total_trips / totals.active_days : 0;
-    const avgProfitPerDay = totals.active_days > 0 ? totals.total_profit / totals.active_days : 0;
+    const avgTripsPerDay = (totals.active_days as number) > 0 ? (totals.total_trips as number) / (totals.active_days as number) : 0;
+    const avgProfitPerDay = (totals.active_days as number) > 0 ? (totals.total_profit as number) / (totals.active_days as number) : 0;
 
     return {
       best_day: {
@@ -436,10 +436,10 @@ export class GPTOnlyAICoordinator {
     };
   }
 
-  private generateSmartRecommendations(totals: any, insights: any): string[] {
+  private generateSmartRecommendations(totals: Record<string, unknown>): string[] {
     const recommendations = [];
-    const avgProfitPerTrip = totals.total_trips > 0 ? totals.total_profit / totals.total_trips : 0;
-    const profitMargin = totals.total_earnings > 0 ? (totals.total_profit / totals.total_earnings) * 100 : 0;
+    const avgProfitPerTrip = ((totals as Record<string, unknown>).total_trips as number) > 0 ? ((totals as Record<string, unknown>).total_profit as number) / ((totals as Record<string, unknown>).total_trips as number) : 0;
+    const profitMargin = ((totals as Record<string, unknown>).total_earnings as number) > 0 ? (((totals as Record<string, unknown>).total_profit as number) / ((totals as Record<string, unknown>).total_earnings as number)) * 100 : 0;
 
     if (avgProfitPerTrip < 8) {
       recommendations.push('Focus on higher-paying trips and avoid low-value rides');
@@ -447,7 +447,7 @@ export class GPTOnlyAICoordinator {
     if (profitMargin < 50) {
       recommendations.push('Optimize routes and reduce idle time to improve fuel efficiency');
     }
-    if (totals.screenshots_count < 20) {
+    if (((totals as Record<string, unknown>).screenshots_count as number) < 20) {
       recommendations.push('Upload more screenshots for more accurate AI insights');
     }
 

@@ -1,6 +1,5 @@
 // Automated ngrok Setup and Public URL Generation
-const { exec, spawn } = require("child_process");
-const path = require("path");
+import { spawn } from "child_process";
 
 async function setupNgrokTunnel() {
   console.log("🌐 SETTING UP NGROK TUNNEL FOR CLIENT ACCESS");
@@ -11,9 +10,9 @@ async function setupNgrokTunnel() {
 
   try {
     const fetch = (await import("node-fetch")).default;
-    const response = await fetch("http://localhost:3000");
+    await fetch("http://localhost:3000");
     console.log("✅ Next.js app is running and accessible");
-  } catch (error) {
+  } catch {
     console.log("❌ Next.js app not running on localhost:3000");
     console.log("💡 Please start the app first: npm run dev");
     return;
@@ -22,11 +21,12 @@ async function setupNgrokTunnel() {
   // Try different ngrok installation methods
   console.log("\n🔧 Setting up ngrok tunnel...");
 
-  const ngrokCommands = [
-    "ngrok http 3000",
-    "npx ngrok http 3000",
-    ".\\ngrok.exe http 3000",
-  ];
+  // Available commands for manual setup
+  // const commands = [
+  //   "ngrok http 3000",
+  //   "npx ngrok http 3000",
+  //   ".\\ngrok.exe http 3000",
+  // ];
 
   console.log("\n📋 MANUAL NGROK SETUP STEPS:");
   console.log("If automated setup fails, follow these steps:");

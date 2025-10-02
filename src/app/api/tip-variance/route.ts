@@ -7,7 +7,7 @@ class TipVarianceAnalysisMCP {
     tripId: number
   ): Promise<{
     success: boolean;
-    analysis?: any;
+    analysis?: Record<string, unknown>;
     error?: string;
   }> {
     try {
@@ -44,7 +44,7 @@ class TipVarianceAnalysisMCP {
         (s) => s.screenshot_type === "navigation"
       );
 
-      let analysis: any = {
+      const analysis: Record<string, unknown> = {
         trip_id: tripId,
         screenshots_processed: screenshots.length,
         has_initial_offer: !!initialScreenshot,
@@ -91,8 +91,8 @@ class TipVarianceAnalysisMCP {
       // Calculate tip variance if we have both screenshots
       if (analysis.has_initial_offer && analysis.has_final_total) {
         analysis.tip_variance_analysis = await this.calculateTipVariance(
-          analysis.initial_offer_data,
-          analysis.final_total_data
+          analysis.initial_offer_data as Record<string, unknown>,
+          analysis.final_total_data as Record<string, unknown>
         );
       }
 
@@ -163,16 +163,21 @@ class TipVarianceAnalysisMCP {
     };
   }
 
-  private async calculateTipVariance(initialData: any, finalData: any) {
+  private async calculateTipVariance(
+    initialData: Record<string, unknown>,
+    finalData: Record<string, unknown>
+  ) {
     const estimatedTotal = initialData.total_estimate || 0;
     const actualTotal = finalData.total_actual || 0;
     const estimatedTip = initialData.estimated_tip || 0;
     const actualTip = finalData.actual_tip || 0;
 
-    const totalVariance = actualTotal - estimatedTotal;
-    const tipVariance = actualTip - estimatedTip;
+    const totalVariance = (actualTotal as number) - (estimatedTotal as number);
+    const tipVariance = (actualTip as number) - (estimatedTip as number);
     const tipVariancePercentage =
-      estimatedTip > 0 ? (tipVariance / estimatedTip) * 100 : 0;
+      (estimatedTip as number) > 0
+        ? (tipVariance / (estimatedTip as number)) * 100
+        : 0;
 
     let accuracyCategory = "exact";
     if (Math.abs(tipVariance) > 1.0) {
@@ -265,7 +270,9 @@ class TipVarianceAnalysisMCP {
     return insights;
   }
 
-  private async processNavigationScreenshots(navigationScreenshots: any[]) {
+  private async processNavigationScreenshots(
+    navigationScreenshots: Record<string, unknown>[]
+  ) {
     // Process navigation screenshots to extract route data
     return {
       route_screenshots_count: navigationScreenshots.length,
@@ -281,17 +288,19 @@ class TipVarianceAnalysisMCP {
     };
   }
 
-  private async generateTripInsights(analysis: any) {
+  private async generateTripInsights(analysis: Record<string, unknown>) {
     const insights = [];
 
     if (analysis.tip_variance_analysis) {
-      const variance = analysis.tip_variance_analysis;
-      insights.push(...variance.variance_insights);
+      const variance = analysis.tip_variance_analysis as Record<string, unknown>;
+      insights.push(...((variance.variance_insights as string[]) || []));
 
       // Add Honda Odyssey specific insights
-      const distance = variance.estimated_vs_actual.actual.distance || 12.5;
+      const estimatedVsActual = variance.estimated_vs_actual as Record<string, unknown>;
+      const actual = estimatedVsActual?.actual as Record<string, unknown>;
+      const distance = (actual?.distance as number) || 12.5;
       const gasCost = (distance / 19) * 3.5; // Honda Odyssey 19 MPG, $3.50/gallon
-      const profit = variance.estimated_vs_actual.actual.total - gasCost;
+      const profit = ((actual?.total as number) || 0) - gasCost;
 
       insights.push(
         `Honda Odyssey fuel cost: $${gasCost.toFixed(2)} for ${distance} miles`
@@ -318,7 +327,7 @@ class TipVarianceAnalysisMCP {
     };
   }
 
-  private assessDataCompleteness(analysis: any) {
+  private assessDataCompleteness(analysis: Record<string, unknown>) {
     let completeness = 0;
     const factors = [];
 
@@ -349,9 +358,10 @@ class TipVarianceAnalysisMCP {
     return allFactors.filter((factor) => !availableFactors.includes(factor));
   }
 
-  private generateRecommendation(analysis: any) {
+  private generateRecommendation(analysis: Record<string, unknown>) {
     if (analysis.tip_variance_analysis) {
-      const category = analysis.tip_variance_analysis.accuracy_category;
+      const tipAnalysis = analysis.tip_variance_analysis as Record<string, unknown>;
+      const category = tipAnalysis.accuracy_category as string;
 
       if (category === "significantly_over") {
         return "Excellent performance! Customer satisfaction was high. Continue providing this level of service.";
@@ -365,24 +375,28 @@ class TipVarianceAnalysisMCP {
     return "Upload both initial offer and final total screenshots for complete analysis.";
   }
 
-  private async updateTripWithAnalysis(tripId: number, analysis: any) {
-    const updateData: any = {};
+  private async updateTripWithAnalysis(
+    tripId: number,
+    analysis: Record<string, unknown>
+  ) {
+    const updateData: Record<string, unknown> = {};
 
     if (analysis.initial_offer_data) {
-      updateData.initial_estimate = analysis.initial_offer_data.total_estimate;
+      const initialData = analysis.initial_offer_data as Record<string, unknown>;
+      updateData.initial_estimate = initialData.total_estimate as number;
     }
 
     if (analysis.final_total_data) {
-      updateData.final_total = analysis.final_total_data.total_actual;
-      updateData.total_profit = analysis.final_total_data.driver_earnings || 0;
-      updateData.total_distance =
-        analysis.final_total_data.actual_distance || 0;
+      const finalData = analysis.final_total_data as Record<string, unknown>;
+      updateData.final_total = finalData.total_actual as number;
+      updateData.total_profit = (finalData.driver_earnings as number) || 0;
+      updateData.total_distance = (finalData.actual_distance as number) || 0;
     }
 
     if (analysis.tip_variance_analysis) {
-      updateData.tip_variance = analysis.tip_variance_analysis.tip_variance;
-      updateData.tip_accuracy =
-        analysis.tip_variance_analysis.accuracy_category;
+      const tipAnalysis = analysis.tip_variance_analysis as Record<string, unknown>;
+      updateData.tip_variance = tipAnalysis.tip_variance as number;
+      updateData.tip_accuracy = tipAnalysis.accuracy_category as string;
     }
 
     // Update trip data with enhanced insights

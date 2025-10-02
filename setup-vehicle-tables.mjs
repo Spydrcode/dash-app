@@ -37,7 +37,7 @@ async function setupVehicleTables() {
     console.log("\n📋 Creating maintenance_records table...");
 
     // Test if maintenance_records table exists
-    const { data: testMaintenance, error: maintenanceError } = await supabase
+    const { error: maintenanceError } = await supabase
       .from("maintenance_records")
       .select("id")
       .limit(1);
@@ -67,7 +67,7 @@ async function setupVehicleTables() {
     }
 
     // Test fuel_records table
-    const { data: testFuel, error: fuelError } = await supabase
+    const { error: fuelError } = await supabase
       .from("fuel_records")
       .select("id")
       .limit(1);
@@ -80,7 +80,7 @@ async function setupVehicleTables() {
     }
 
     // Test vehicle_alerts table
-    const { data: testAlerts, error: alertsError } = await supabase
+    const { error: alertsError } = await supabase
       .from("vehicle_alerts")
       .select("id")
       .limit(1);

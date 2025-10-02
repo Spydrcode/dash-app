@@ -4,11 +4,45 @@
 import { AITrainingSystem } from './ai-training-system';
 import { ENHANCED_RIDESHARE_VALIDATION_RULES, EnhancedTripDataValidator } from './enhanced-data-validator';
 
+interface TripTotals {
+  profit: number;
+  earnings: number;
+  trips: number;
+  distance: number;
+  activeDays: number;
+}
+
+interface PersonalizedBenchmarks {
+  excellentPerformance: number;
+  goodPerformance: number;
+  averagePerformance: number;
+  targetEarningsPerTrip: number;
+  targetTripsPerDay: number;
+}
+
+interface TimeAnalysisBestDay {
+  day: string;
+  profit: number;
+  trips: number;
+  earnings: number;
+}
+
+interface TimeAnalysis {
+  best_day: TimeAnalysisBestDay;
+  best_hour: {
+    hour: string;
+    profit: number;
+    trips: number;
+  };
+  ai_generated: boolean;
+  agent: string;
+}
+
 export interface TripScreenshotData {
   id: string;
   screenshot_type: 'initial_offer' | 'final_total' | 'dashboard' | 'map';
-  ocr_data: any;
-  extracted_data: any;
+  ocr_data: Record<string, unknown>;
+  extracted_data: Record<string, unknown>;
   trip_id: string;
   upload_timestamp: string;
   is_processed?: boolean;
@@ -19,14 +53,14 @@ export interface TripScreenshotData {
 export interface TripData {
   id: string;
   driver_id?: string;
-  trip_data: any;
+  trip_data: Record<string, unknown>;
   trip_screenshots?: TripScreenshotData[];
   created_at: string;
   upload_date?: string;
   total_profit?: number;
   total_distance?: number;
   vehicle_model?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // OpenAI GPT Service
@@ -42,7 +76,7 @@ class OpenAIService {
     this.apiKey = apiKey;
   }
 
-  async generateInsights(data: any, model: string = 'gpt-4o'): Promise<any> {
+  async generateInsights(data: Record<string, unknown>, model: string = 'gpt-4o'): Promise<Record<string, unknown>> {
     try {
       console.log(`🤖 Generating insights with ${model}...`);
       
@@ -91,7 +125,7 @@ class OpenAIService {
     }
   }
 
-  async processScreenshotWithVision(imageBase64: string, screenshotType: string): Promise<any> {
+  async processScreenshotWithVision(imageBase64: string, screenshotType: string): Promise<Record<string, unknown>> {
     try {
       console.log(`👁️ Processing ${screenshotType} screenshot with GPT-4V...`);
       
@@ -148,7 +182,7 @@ class OpenAIService {
     }
   }
 
-  private generateSimulatedVisionResponse(screenshotType: string): any {
+  private generateSimulatedVisionResponse(screenshotType: string): Record<string, unknown> {
     console.log(`🎭 Simulating vision extraction for ${screenshotType} (quota fallback)`);
     
     // Generate realistic mock data based on screenshot type
@@ -187,7 +221,7 @@ class OpenAIService {
     };
   }
 
-  private buildInsightPrompt(data: any): string {
+  private buildInsightPrompt(data: Record<string, unknown>): string {
     return `Analyze this rideshare driving data and provide specific insights:
 
 TRIP DATA:
@@ -235,10 +269,10 @@ If any field is not visible, use "N/A"`,
     return prompts[screenshotType as keyof typeof prompts] || prompts.default;
   }
 
-  private parseInsightResponse(response: string): any {
+  private parseInsightResponse(response: string): Record<string, unknown> {
     try {
       const lines = response.split('\n');
-      const insights: any = {};
+      const insights: Record<string, unknown> = {};
       
       for (const line of lines) {
         if (line.includes('PERFORMANCE_SCORE:')) {
@@ -266,9 +300,9 @@ If any field is not visible, use "N/A"`,
     }
   }
 
-  private parseVisionResponse(response: string, screenshotType: string): any {
+  private parseVisionResponse(response: string, screenshotType: string): Record<string, unknown> {
     try {
-      const extracted: any = { screenshot_type: screenshotType };
+      const extracted: Record<string, unknown> = { screenshot_type: screenshotType };
       
       // Parse structured response
       const lines = response.split('\n');
@@ -317,7 +351,7 @@ If any field is not visible, use "N/A"`,
     }
   }
 
-  private assessExtractionQuality(data: any): 'HIGH' | 'MEDIUM' | 'LOW' {
+  private assessExtractionQuality(data: Record<string, unknown>): 'HIGH' | 'MEDIUM' | 'LOW' {
     const hasEarnings = !!data.driver_earnings;
     const hasDistance = !!data.distance;
     const hasTrips = !!data.total_trips;
@@ -327,21 +361,25 @@ If any field is not visible, use "N/A"`,
     return 'LOW';
   }
 
-  private calculateConfidence(data: any): number {
+  private calculateConfidence(data: Record<string, unknown>): number {
     let score = 0;
-    if (data.driver_earnings && data.driver_earnings > 0) score += 30;
-    if (data.distance && data.distance > 0) score += 25;
-    if (data.total_trips && data.total_trips > 0) score += 25;
+    const earnings = typeof data.driver_earnings === 'number' ? data.driver_earnings : 0;
+    const distance = typeof data.distance === 'number' ? data.distance : 0;
+    const trips = typeof data.total_trips === 'number' ? data.total_trips : 0;
+    
+    if (earnings > 0) score += 30;
+    if (distance > 0) score += 25;
+    if (trips > 0) score += 25;
     if (data.pickup_location) score += 10;
     if (data.destination) score += 10;
     return Math.min(score, 100);
   }
 
   // Enhanced fallback analysis when API quota is exceeded
-  private generateEnhancedFallbackInsights(data: any): any {
+  private generateEnhancedFallbackInsights(data: Record<string, unknown>): Record<string, unknown> {
     console.log('📊 Generating enhanced fallback insights (OpenAI quota exceeded)...');
     
-    const totals = data.totals || {};
+    const totals = (data.totals as TripTotals) || { profit: 0, earnings: 0, trips: 0, distance: 0, activeDays: 0 };
     const avgProfitPerTrip = totals.trips > 0 ? totals.profit / totals.trips : 0;
     const profitMargin = totals.earnings > 0 ? (totals.profit / totals.earnings) * 100 : 0;
     const milesPerTrip = totals.trips > 0 ? totals.distance / totals.trips : 0;
@@ -392,11 +430,11 @@ If any field is not visible, use "N/A"`,
   }
 
   // Fallback analysis when API is unavailable
-  private generateFallbackInsights(data: any): any {
+  private generateFallbackInsights(data: Record<string, unknown>): Record<string, unknown> {
     return this.generateEnhancedFallbackInsights(data);
   }
 
-  private generateSmartRecommendations(totals: any, avgProfit: number, margin: number): string {
+  private generateSmartRecommendations(totals: TripTotals, avgProfit: number, margin: number): string {
     const recommendations = [];
     
     if (avgProfit < 10) {
@@ -427,7 +465,7 @@ let enhancedValidator: EnhancedTripDataValidator;
 export class GPTAIInsightsCoordinator {
   private static validationRules = ENHANCED_RIDESHARE_VALIDATION_RULES;
 
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, options: any) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string): Promise<Record<string, unknown>> {
     console.log(`🤖 GPT AI: Analyzing ${trips.length} records with ChatGPT models`);
     
     try {
@@ -476,14 +514,14 @@ export class GPTAIInsightsCoordinator {
       }
       
       // STEP 4: Calculate totals from individual trips (fixed approach)
-      const allTrips = validationResult.processedTrips;
+      const allTrips = validationResult.processedTrips as TripData[];
       const uniqueDays = this.getUniqueDaysCount(allTrips);
       console.log(`📊 Processing ${allTrips.length} individual trips across ${uniqueDays} days`);
 
       // STEP 5: Calculate accurate totals
       let realTotals, personalizedBenchmarks;
       try {
-        realTotals = this.calculateTotalsFromIndividualTrips(allTrips, uniqueDays);
+        realTotals = this.calculateTotalsFromIndividualTrips(allTrips);
         personalizedBenchmarks = aiTrainer.generatePersonalizedBenchmarks(allTrips);
       } catch (calculationError) {
         console.error('⚠️ Calculation failed:', calculationError);
@@ -504,7 +542,7 @@ export class GPTAIInsightsCoordinator {
 
       // STEP 7: Generate performance breakdown and realistic time analysis
       const performanceBreakdown = this.generatePerformanceBreakdown(realTotals);
-      const timeAnalysis = this.generateRealisticTimeAnalysis(allTrips);
+      const timeAnalysis = this.generateRealisticTimeAnalysis(allTrips) as unknown as TimeAnalysis;
 
       return {
         summary: {
@@ -513,8 +551,8 @@ export class GPTAIInsightsCoordinator {
           total_earnings: realTotals.earnings,
           total_profit: realTotals.profit,
           total_distance: realTotals.distance,
-          performance_score: Math.round(aiInsights.performance_score || this.calculateFallbackScore(realTotals, personalizedBenchmarks)),
-          performance_category: this.getPerformanceCategory(aiInsights.performance_score || 0),
+          performance_score: Math.round((aiInsights.performance_score as number) || this.calculateFallbackScore(realTotals, personalizedBenchmarks)),
+          performance_category: this.getPerformanceCategory((aiInsights.performance_score as number) || 0),
           profit_margin: realTotals.earnings > 0 ? (realTotals.profit / realTotals.earnings) * 100 : 0,
           active_days: realTotals.activeDays,
           avg_daily_profit: realTotals.profit / Math.max(realTotals.activeDays, 1),
@@ -600,12 +638,12 @@ export class GPTAIInsightsCoordinator {
   }
 
   // Calculate totals from individual trip records (no deduplication)
-  private static calculateTotalsFromIndividualTrips(trips: TripData[], uniqueDays: number) {
+  private static calculateTotalsFromIndividualTrips(trips: TripData[]) {
     let totalRealEarnings = 0;
     let totalRealProfit = 0;
     let totalRealTrips = 0;
     let totalRealDistance = 0;
-    let enhancedExtractions = 0;
+    const enhancedExtractions = 0;
 
     console.log(`🔍 SUMMING INDIVIDUAL TRIPS: Processing ${trips.length} trip records...`);
 
@@ -640,7 +678,7 @@ export class GPTAIInsightsCoordinator {
   }
 
   // Generate realistic time analysis with accurate caps
-  private static generateRealisticTimeAnalysis(trips: TripData[]) {
+  private static generateRealisticTimeAnalysis(trips: TripData[]): Record<string, unknown> {
     console.log(`🕐 REALISTIC TIME ANALYSIS: Processing ${trips.length} trips...`);
 
     // Group trips by actual date
@@ -648,8 +686,8 @@ export class GPTAIInsightsCoordinator {
 
     trips.forEach((trip) => {
       let dateKey: string;
-      if (trip.trip_data?.trip_date) {
-        dateKey = trip.trip_data.trip_date;
+      if (trip.trip_data && typeof (trip.trip_data as Record<string, unknown>).trip_date === 'string') {
+        dateKey = (trip.trip_data as Record<string, unknown>).trip_date as string;
       } else if (trip.created_at) {
         dateKey = trip.created_at.split('T')[0];
       } else {
@@ -704,7 +742,7 @@ export class GPTAIInsightsCoordinator {
   }
 
   // Helper methods
-  private static generatePerformanceBreakdown(totals: any) {
+  private static generatePerformanceBreakdown(totals: Record<string, number>) {
     return {
       earnings_per_mile: totals.distance > 0 ? totals.earnings / totals.distance : 0,
       profit_per_mile: totals.distance > 0 ? totals.profit / totals.distance : 0,
@@ -719,8 +757,8 @@ export class GPTAIInsightsCoordinator {
     const uniqueDates = new Set();
     trips.forEach(trip => {
       let date: string;
-      if (trip.trip_data?.trip_date) {
-        date = trip.trip_data.trip_date;
+      if (trip.trip_data && typeof (trip.trip_data as Record<string, unknown>).trip_date === 'string') {
+        date = (trip.trip_data as Record<string, unknown>).trip_date as string;
       } else if (trip.created_at) {
         date = trip.created_at.split('T')[0];
       } else {
@@ -735,11 +773,15 @@ export class GPTAIInsightsCoordinator {
     let profit = 0, earnings = 0, tripCount = 0, distance = 0;
     
     trips.forEach(trip => {
-      const tripData = trip.trip_data || {};
-      profit += parseFloat(tripData.profit || trip.total_profit || 0);
-      earnings += parseFloat(tripData.driver_earnings || 0);
+      const tripData = (trip.trip_data as Record<string, unknown>) || {};
+      const profitValue = tripData.profit || trip.total_profit || 0;
+      const earningsValue = tripData.driver_earnings || 0;
+      const distanceValue = tripData.distance || trip.total_distance || 0;
+      
+      profit += parseFloat(String(profitValue));
+      earnings += parseFloat(String(earningsValue));
       tripCount += 1; // Each record is 1 trip
-      distance += parseFloat(tripData.distance || trip.total_distance || 0);
+      distance += parseFloat(String(distanceValue));
     });
 
     return {
@@ -758,7 +800,7 @@ export class GPTAIInsightsCoordinator {
     };
   }
 
-  private static calculateFallbackScore(totals: any, benchmarks: any): number {
+  private static calculateFallbackScore(totals: TripTotals, benchmarks: PersonalizedBenchmarks): number {
     const avgProfitPerTrip = totals.trips > 0 ? totals.profit / totals.trips : 0;
     if (avgProfitPerTrip >= benchmarks.targetEarningsPerTrip) return 85;
     if (avgProfitPerTrip >= benchmarks.targetEarningsPerTrip * 0.8) return 70;

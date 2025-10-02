@@ -1,15 +1,31 @@
 import { supabaseAdmin, type TripData } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+// Enhanced interfaces for trip analysis
+interface VehicleData {
+  mpg: number;
+  year: number;
+  cityMpg: number;
+  highwayMpg: number;
+}
+
+// interface TripAnalysisResult {
+//   total_distance: number;
+//   total_gas_cost: number;
+//   avg_profit_per_trip: number;
+//   profit_per_mile: number;
+//   gas_efficiency_percentage: number;
+// }
+
 // Enhanced MCP Analytics for reanalysis with time-based insights
 class AdvancedAnalyticsMCP {
-  private vehicleDatabase: Record<string, { mpg: number; year: number; cityMpg: number; highwayMpg: number }> = {
+  private vehicleDatabase: Record<string, VehicleData> = {
     "2003 Honda Odyssey": { mpg: 19, year: 2003, cityMpg: 16, highwayMpg: 23 }
   };
 
-  async reanalyzeTrips(trips: any[], timeframe: string, analysisType: 'daily' | 'weekly' | 'custom' | 'comparison'): Promise<{
+  async reanalyzeTrips(trips: Record<string, unknown>[], timeframe: string, analysisType: 'daily' | 'weekly' | 'custom' | 'comparison'): Promise<{
     success: boolean;
-    results?: any;
+    results?: Record<string, unknown>;
     error?: string;
   }> {
     try {
@@ -52,15 +68,20 @@ class AdvancedAnalyticsMCP {
     }
   }
 
-  private enhanceTripWithAdvancedMetrics(trip: any) {
-    const tripData = trip.trip_data || {};
-    const dayOfWeek = new Date(trip.created_at).toLocaleDateString('en-US', { weekday: 'long' });
-    const hour = new Date(trip.created_at).getHours();
+  private enhanceTripWithAdvancedMetrics(trip: Record<string, unknown>) {
+    const tripData = (trip.trip_data as Record<string, unknown>) || {};
+    const createdAt = typeof trip.created_at === 'string' ? trip.created_at : new Date().toISOString();
+    const dayOfWeek = new Date(createdAt).toLocaleDateString('en-US', { weekday: 'long' });
+    const hour = new Date(createdAt).getHours();
     
-    // Enhanced metrics
-    const profitPerMile = (trip.total_profit || 0) / (tripData.distance || 1);
+    // Enhanced metrics with type checking
+    const totalProfit = typeof trip.total_profit === 'number' ? trip.total_profit : 0;
+    const gasCost = typeof trip.gas_cost === 'number' ? trip.gas_cost : 0;
+    const distance = typeof tripData.distance === 'number' ? tripData.distance : 1;
+    
+    const profitPerMile = totalProfit / distance;
     const profitPerHour = this.calculateHourlyRate(tripData);
-    const gasEfficiency = (trip.gas_cost || 0) / (trip.total_profit || 1);
+    const gasEfficiency = gasCost / (totalProfit || 1);
     
     return {
       ...trip,
@@ -76,15 +97,15 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private async performDailyAnalysis(trips: any[]) {
+  private async performDailyAnalysis(trips: Record<string, unknown>[]) {
     const dailyGroups = this.groupTripsByDay(trips);
-    const dailyAnalysis: Record<string, any> = {};
+    const dailyAnalysis: Record<string, Record<string, unknown>> = {};
 
     for (const [day, dayTrips] of Object.entries(dailyGroups)) {
-      const dayStats = this.calculateDayStatistics(dayTrips as any[]);
+      const dayStats = this.calculateDayStatistics(dayTrips as Record<string, unknown>[]);
       dailyAnalysis[day] = {
         ...dayStats,
-        insights: await this.generateDayInsights(dayTrips as any[], day)
+        insights: await this.generateDayInsights(dayTrips as Record<string, unknown>[], day)
       };
     }
 
@@ -96,14 +117,14 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private async performWeeklyAnalysis(trips: any[]) {
+  private async performWeeklyAnalysis(trips: Record<string, unknown>[]) {
     const weeklyGroups = this.groupTripsByWeek(trips);
-    const weeklyAnalysis: Record<string, any> = {};
+    const weeklyAnalysis: Record<string, unknown> = {};
 
     for (const [week, weekTrips] of Object.entries(weeklyGroups)) {
       weeklyAnalysis[week] = {
-        ...this.calculateWeekStatistics(weekTrips as any[]),
-        daily_breakdown: this.analyzeDailyPatternsInWeek(weekTrips as any[])
+        ...this.calculateWeekStatistics(weekTrips as Record<string, unknown>[]),
+        daily_breakdown: this.analyzeDailyPatternsInWeek(weekTrips as Record<string, unknown>[])
       };
     }
 
@@ -114,7 +135,7 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private async performComparisonAnalysis(trips: any[]) {
+  private async performComparisonAnalysis(trips: Record<string, unknown>[]) {
     const dayComparisons = this.compareDayPerformance(this.groupTripsByDay(trips));
     const timeComparisons = this.compareTimePerformance(trips);
     
@@ -126,24 +147,24 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private groupTripsByDay(trips: any[]) {
+  private groupTripsByDay(trips: Record<string, unknown>[]) {
     return trips.reduce((groups, trip) => {
-      const day = new Date(trip.created_at).toLocaleDateString('en-US', { 
+      const day = new Date(trip.created_at as string).toLocaleDateString('en-US', { 
         weekday: 'long', 
         year: 'numeric', 
         month: 'short', 
         day: 'numeric' 
       });
       if (!groups[day]) groups[day] = [];
-      groups[day].push(trip);
+      (groups[day] as Record<string, unknown>[]).push(trip);
       return groups;
     }, {});
   }
 
-  private calculateDayStatistics(dayTrips: any[]) {
-    const totalProfit = dayTrips.reduce((sum, trip) => sum + (trip.total_profit || 0), 0);
-    const totalDistance = dayTrips.reduce((sum, trip) => sum + (trip.total_distance || 0), 0);
-    const totalGasCost = dayTrips.reduce((sum, trip) => sum + (trip.gas_cost || 0), 0);
+  private calculateDayStatistics(dayTrips: Record<string, unknown>[]) {
+    const totalProfit = dayTrips.reduce((sum, trip) => sum + (typeof trip.total_profit === 'number' ? trip.total_profit : 0), 0);
+    const totalDistance = dayTrips.reduce((sum, trip) => sum + (typeof trip.total_distance === 'number' ? trip.total_distance : 0), 0);
+    const totalGasCost = dayTrips.reduce((sum, trip) => sum + (typeof trip.gas_cost === 'number' ? trip.gas_cost : 0), 0);
     
     return {
       trip_count: dayTrips.length,
@@ -156,16 +177,16 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private compareDayPerformance(dailyGroups: any) {
+  private compareDayPerformance(dailyGroups: Record<string, unknown>) {
     const days = Object.keys(dailyGroups);
-    const comparisons: Record<string, any> = {};
+    const comparisons: Record<string, unknown> = {};
 
     for (let i = 0; i < days.length - 1; i++) {
       for (let j = i + 1; j < days.length; j++) {
         const day1 = days[i];
         const day2 = days[j];
-        const stats1 = this.calculateDayStatistics(dailyGroups[day1]);
-        const stats2 = this.calculateDayStatistics(dailyGroups[day2]);
+        const stats1 = this.calculateDayStatistics(dailyGroups[day1] as Record<string, unknown>[]);
+        const stats2 = this.calculateDayStatistics(dailyGroups[day2] as Record<string, unknown>[]);
 
         comparisons[`${day1} vs ${day2}`] = {
           profit_difference: Math.round((stats1.total_profit - stats2.total_profit) * 100) / 100,
@@ -199,13 +220,14 @@ class AdvancedAnalyticsMCP {
     return Math.round(((tripData.profit || 0) / hours) * 100) / 100;
   }
 
-  private findBestPerformingDay(dailyAnalysis: any) {
+  private findBestPerformingDay(dailyAnalysis: Record<string, unknown>) {
     let bestDay = '';
     let bestProfit = 0;
     
     for (const [day, stats] of Object.entries(dailyAnalysis)) {
-      if ((stats as any).total_profit > bestProfit) {
-        bestProfit = (stats as any).total_profit;
+      const profit = typeof (stats as Record<string, unknown>).total_profit === 'number' ? (stats as Record<string, unknown>).total_profit as number : 0;
+      if (profit > bestProfit) {
+        bestProfit = profit;
         bestDay = day;
       }
     }
@@ -213,13 +235,14 @@ class AdvancedAnalyticsMCP {
     return { day: bestDay, profit: bestProfit };
   }
 
-  private findWorstPerformingDay(dailyAnalysis: any) {
+  private findWorstPerformingDay(dailyAnalysis: Record<string, unknown>) {
     let worstDay = '';
     let worstProfit = Infinity;
     
     for (const [day, stats] of Object.entries(dailyAnalysis)) {
-      if ((stats as any).total_profit < worstProfit) {
-        worstProfit = (stats as any).total_profit;
+      const profit = typeof (stats as Record<string, unknown>).total_profit === 'number' ? (stats as Record<string, unknown>).total_profit as number : Infinity;
+      if (profit < worstProfit) {
+        worstProfit = profit;
         worstDay = day;
       }
     }
@@ -227,7 +250,7 @@ class AdvancedAnalyticsMCP {
     return { day: worstDay, profit: worstProfit };
   }
 
-  private async generateDayInsights(dayTrips: any[], day: string) {
+  private async generateDayInsights(dayTrips: Record<string, unknown>[], day: string) {
     const stats = this.calculateDayStatistics(dayTrips);
     const dayOfWeek = day.split(',')[0]; // Extract day name
     
@@ -248,9 +271,9 @@ class AdvancedAnalyticsMCP {
     return insights;
   }
 
-  private groupTripsByWeek(trips: any[]) {
+  private groupTripsByWeek(trips: Record<string, unknown>[]) {
     return trips.reduce((groups, trip) => {
-      const date = new Date(trip.created_at);
+      const date = new Date(trip.created_at as string);
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay());
       const weekKey = weekStart.toLocaleDateString('en-US', { 
@@ -260,14 +283,14 @@ class AdvancedAnalyticsMCP {
       });
       
       if (!groups[`Week of ${weekKey}`]) groups[`Week of ${weekKey}`] = [];
-      groups[`Week of ${weekKey}`].push(trip);
+      (groups[`Week of ${weekKey}`] as Record<string, unknown>[]).push(trip);
       return groups;
     }, {});
   }
 
-  private calculateWeekStatistics(weekTrips: any[]) {
+  private calculateWeekStatistics(weekTrips: Record<string, unknown>[]) {
     const dailyBreakdown = this.groupTripsByDay(weekTrips);
-    const totalProfit = weekTrips.reduce((sum, trip) => sum + (trip.total_profit || 0), 0);
+    const totalProfit = weekTrips.reduce((sum, trip) => sum + (typeof trip.total_profit === 'number' ? trip.total_profit : 0), 0);
     
     return {
       total_trips: weekTrips.length,
@@ -275,28 +298,28 @@ class AdvancedAnalyticsMCP {
       daily_average: Math.round((totalProfit / 7) * 100) / 100,
       active_days: Object.keys(dailyBreakdown).length,
       best_day_profit: Math.max(...Object.values(dailyBreakdown).map(trips => 
-        this.calculateDayStatistics(trips as any[]).total_profit
+        this.calculateDayStatistics(trips as Record<string, unknown>[]).total_profit
       ))
     };
   }
 
-  private analyzeDailyPatternsInWeek(weekTrips: any[]) {
+  private analyzeDailyPatternsInWeek(weekTrips: Record<string, unknown>[]) {
     const dailyGroups = this.groupTripsByDay(weekTrips);
-    const patterns: Record<string, any> = {};
+    const patterns: Record<string, unknown> = {};
     
     for (const [day, trips] of Object.entries(dailyGroups)) {
       const dayName = day.split(',')[0];
-      patterns[dayName] = this.calculateDayStatistics(trips as any[]);
+      patterns[dayName] = this.calculateDayStatistics(trips as Record<string, unknown>[]);
     }
     
     return patterns;
   }
 
-  private identifyWeeklyTrends(weeklyAnalysis: any) {
+  private identifyWeeklyTrends(weeklyAnalysis: Record<string, unknown>) {
     const weeks = Object.keys(weeklyAnalysis);
     if (weeks.length < 2) return { trend: 'insufficient_data' };
     
-    const profits = weeks.map(week => weeklyAnalysis[week].total_profit);
+    const profits = weeks.map(week => (weeklyAnalysis[week] as Record<string, unknown>).total_profit as number);
     const isImproving = profits[profits.length - 1] > profits[0];
     
     return {
@@ -306,10 +329,10 @@ class AdvancedAnalyticsMCP {
     };
   }
 
-  private generateWeeklyRecommendations(weeklyAnalysis: any) {
+  private generateWeeklyRecommendations(weeklyAnalysis: Record<string, unknown>) {
     const recommendations = [];
     const weeks = Object.values(weeklyAnalysis);
-    const avgWeeklyProfit = weeks.reduce((sum: number, week: any) => sum + week.total_profit, 0) / weeks.length;
+    const avgWeeklyProfit = (weeks as string[]).reduce((sum: number, week: string) => sum + (typeof (weeklyAnalysis[week] as Record<string, unknown>).total_profit === 'number' ? (weeklyAnalysis[week] as Record<string, unknown>).total_profit as number : 0), 0) / weeks.length;
     
     recommendations.push(`Your average weekly profit is $${Math.round(avgWeeklyProfit * 100) / 100}`);
     
@@ -320,38 +343,38 @@ class AdvancedAnalyticsMCP {
     return recommendations;
   }
 
-  private compareTimePerformance(trips: any[]) {
+  private compareTimePerformance(trips: Record<string, unknown>[]) {
     const timeGroups = {
-      morning: trips.filter(t => new Date(t.created_at).getHours() >= 6 && new Date(t.created_at).getHours() < 12),
-      afternoon: trips.filter(t => new Date(t.created_at).getHours() >= 12 && new Date(t.created_at).getHours() < 17),
-      evening: trips.filter(t => new Date(t.created_at).getHours() >= 17 && new Date(t.created_at).getHours() < 22),
-      night: trips.filter(t => new Date(t.created_at).getHours() >= 22 || new Date(t.created_at).getHours() < 6)
+      morning: trips.filter(t => new Date(t.created_at as string).getHours() >= 6 && new Date(t.created_at as string).getHours() < 12),
+      afternoon: trips.filter(t => new Date(t.created_at as string).getHours() >= 12 && new Date(t.created_at as string).getHours() < 17),
+      evening: trips.filter(t => new Date(t.created_at as string).getHours() >= 17 && new Date(t.created_at as string).getHours() < 22),
+      night: trips.filter(t => new Date(t.created_at as string).getHours() >= 22 || new Date(t.created_at as string).getHours() < 6)
     };
 
-    const comparisons: Record<string, any> = {};
+    const comparisons: Record<string, unknown> = {};
     for (const [time, timeTrips] of Object.entries(timeGroups)) {
       if (timeTrips.length > 0) {
-        comparisons[time] = this.calculateDayStatistics(timeTrips);
+        comparisons[time] = this.calculateDayStatistics(timeTrips as Record<string, unknown>[]);
       }
     }
 
     return comparisons;
   }
 
-  private identifyPeakPerformance(trips: any[]) {
+  private identifyPeakPerformance(trips: Record<string, unknown>[]) {
     const enhanced = trips.map(t => this.enhanceTripWithAdvancedMetrics(t));
     
     // Find best performing time periods
-    const timeGroups: Record<string, any[]> = {};
+    const timeGroups: Record<string, Record<string, unknown>[]> = {};
     enhanced.forEach(trip => {
-      const period = trip.enhanced_metrics.time_period;
+      const period = (trip.enhanced_metrics as Record<string, unknown>)?.time_period as string;
       if (!timeGroups[period]) timeGroups[period] = [];
       timeGroups[period].push(trip);
     });
 
-    const peakPerformance: Record<string, any> = {};
+    const peakPerformance: Record<string, unknown> = {};
     for (const [period, periodTrips] of Object.entries(timeGroups)) {
-      const stats = this.calculateDayStatistics(periodTrips as any[]);
+      const stats = this.calculateDayStatistics(periodTrips as Record<string, unknown>[]);
       peakPerformance[period] = {
         ...stats,
         performance_rating: stats.profit_per_mile > 2 ? 'Excellent' : stats.profit_per_mile > 1.5 ? 'Good' : 'Average'
@@ -361,13 +384,13 @@ class AdvancedAnalyticsMCP {
     return peakPerformance;
   }
 
-  private identifyOptimizationOpportunities(trips: any[]) {
+  private identifyOptimizationOpportunities(trips: Record<string, unknown>[]) {
     const opportunities = [];
     const enhanced = trips.map(t => this.enhanceTripWithAdvancedMetrics(t));
     
     // Analyze patterns
-    const lowProfitTrips = enhanced.filter(t => t.enhanced_metrics.profit_per_mile < 1.5);
-    const highGasTrips = enhanced.filter(t => t.enhanced_metrics.gas_efficiency_ratio > 0.25);
+    const lowProfitTrips = enhanced.filter(t => ((t.enhanced_metrics as Record<string, unknown>)?.profit_per_mile as number) < 1.5);
+    const highGasTrips = enhanced.filter(t => ((t.enhanced_metrics as Record<string, unknown>)?.gas_efficiency_ratio as number) > 0.25);
     
     if (lowProfitTrips.length > trips.length * 0.3) {
       opportunities.push({
@@ -388,12 +411,12 @@ class AdvancedAnalyticsMCP {
     return opportunities;
   }
 
-  private async performCustomAnalysis(trips: any[], timeframe: string) {
+  private async performCustomAnalysis(trips: Record<string, unknown>[], timeframe: string) {
     // Custom analysis based on specific timeframe
     return {
       timeframe,
       total_trips: trips.length,
-      analysis: this.calculateDayStatistics(trips),
+      analysis: this.calculateDayStatistics(trips as Record<string, unknown>[]),
       insights: await this.generateDayInsights(trips, timeframe)
     };
   }

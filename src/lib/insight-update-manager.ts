@@ -6,7 +6,7 @@ export class InsightUpdateManager {
   private static isProcessing = false;
 
   // Trigger insight updates when screenshots are uploaded
-  static async onScreenshotUpload(tripId: string, screenshotData: any) {
+  static async onScreenshotUpload(tripId: string) {
     console.log(
       `📸 Screenshot uploaded for trip ${tripId} - queuing insight update`
     );
@@ -20,7 +20,7 @@ export class InsightUpdateManager {
   }
 
   // Trigger insight updates when trip analysis completes
-  static async onTripAnalysisComplete(tripId: string, analysisData: any) {
+  static async onTripAnalysisComplete(tripId: string) {
     console.log(
       `🔍 Analysis completed for trip ${tripId} - queuing insight update`
     );

@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Get all trips with enhanced fields and related screenshots
     const { data: trips, error: tripsError } = await supabaseAdmin
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
         ...trip,
         screenshot_count: trip.trip_screenshots?.length || 0,
         has_screenshots: (trip.trip_screenshots?.length || 0) > 0,
-        screenshot_types: trip.trip_screenshots?.map((s: any) => s.screenshot_type) || []
+        screenshot_types: trip.trip_screenshots?.map((s: { screenshot_type: string }) => s.screenshot_type) || []
       })) || [],
       summary: {
         total_records: trips?.length || 0,

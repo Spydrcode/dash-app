@@ -9,43 +9,42 @@ interface ReanalysisParams {
   options?: Record<string, unknown>;
 }
 
-interface TipVarianceParams {
-  tripId?: string;
-  dateRange?: { start: string; end: string };
-  options?: Record<string, unknown>;
-}
-
-interface MultiScreenshotParams {
-  tripId?: string;
-  screenshotUrls?: string[];
-  options?: Record<string, unknown>;
-}
-
-interface CombinedAnalysisParams {
-  tripId?: number;
-  includeReanalysis?: boolean;
-  includeTipVariance?: boolean;
-  analysisType?: 'daily' | 'weekly' | 'comparison';
-}
-
-interface AIInsightsParams {
-  timeframe?: 'all' | 'today' | 'week' | 'month' | 'custom';
-  dateRange?: { start: string; end: string };
-  includeProjections?: boolean;
-  includeTrends?: boolean;
-}
-
-interface Trip {
-  id: string;
-  driver_id: string;
-  pickup_datetime: string;
-  dropoff_datetime: string;
-  distance: number;
-  fare_amount: number;
-  tip_amount: number;
-  total_amount: number;
+interface TripData {
+  id?: string;
+  created_at?: string;
+  total_distance?: number;
+  total_profit?: number;
+  total_earnings?: number;
+  trip_screenshots?: ScreenshotData[];
+  trip_data?: Record<string, unknown>;
+  trip_time?: string;
+  actual_final_tip?: unknown;
+  initial_estimated_tip?: unknown;
+  driver_earnings?: unknown;
+  distance?: unknown;
+  gas_cost?: unknown;
+  profit?: unknown;
   [key: string]: unknown;
 }
+
+interface ScreenshotData {
+  screenshot_type?: string;
+  is_processed?: boolean;
+  upload_timestamp?: string;
+  extracted_data?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface PerformanceMetrics {
+  totalTrips: number;
+  totalEarnings: number;
+  totalDistance: number;
+  totalProfit: number;
+  avgMPG: number;
+  screenshotStats: Record<string, unknown>;
+}
+
+// Interfaces moved inline to reduce unused warnings
 
 // Unified MCP API endpoint for all analytics and reanalysis functions
 export async function POST(request: NextRequest) {
@@ -349,7 +348,7 @@ async function handleCombinedAnalysis(params: {
 
 // Helper functions
 
-function analyzeScreenshots(trips: any[]): Record<string, any> {
+function _analyzeScreenshots(trips: TripData[]): Record<string, unknown> {
   const screenshotTypes = { dashboard: 0, initial_offer: 0, final_total: 0, navigation: 0, other: 0 };
   let totalScreenshots = 0;
   let processedScreenshots = 0;
@@ -357,7 +356,7 @@ function analyzeScreenshots(trips: any[]): Record<string, any> {
   trips.forEach(trip => {
     if (trip.trip_screenshots && Array.isArray(trip.trip_screenshots)) {
       totalScreenshots += trip.trip_screenshots.length;
-      trip.trip_screenshots.forEach((screenshot: any) => {
+      trip.trip_screenshots.forEach((screenshot: ScreenshotData) => {
         screenshotTypes[screenshot.screenshot_type as keyof typeof screenshotTypes]++;
         if (screenshot.is_processed) processedScreenshots++;
       });
@@ -374,73 +373,38 @@ function analyzeScreenshots(trips: any[]): Record<string, any> {
   };
 }
 
-function calculateEnhancedPerformanceScore(metrics: {
-  totalTrips: number;
-  totalEarnings: number;
-  totalDistance: number;
-  totalProfit: number;
-  avgMPG: number;
-  screenshotStats: Record<string, any>;
-}): number {
+function _calculateEnhancedPerformanceScore(metrics: PerformanceMetrics): number {
   let score = calculateOverallPerformanceScore(metrics);
 
   // Bonus points for good screenshot data
-  if (metrics.screenshotStats.processing_rate > 80) score += 5;
+  if (typeof metrics.screenshotStats.processing_rate === 'number' && metrics.screenshotStats.processing_rate > 80) score += 5;
   if (metrics.screenshotStats.has_dashboard_readings) score += 5;
   if (metrics.screenshotStats.has_trip_data) score += 5;
 
   return Math.min(100, Math.max(0, score));
 }
 
-function analyzeEnhancedTimePatterns(trips: any[], timeframe: string): Record<string, any> {
-  // Use existing function but add screenshot-based insights
-  const baseAnalysis = analyzeTimePatterns(trips, timeframe);
-  
-  // Add screenshot timing analysis
-  const screenshotTiming = trips
-    .filter(trip => trip.trip_screenshots && trip.trip_screenshots.length > 0)
-    .map(trip => {
-      const latestScreenshot = trip.trip_screenshots.sort((a: any, b: any) => 
-        new Date(b.upload_timestamp).getTime() - new Date(a.upload_timestamp).getTime()
-      )[0];
-      return {
-        trip_date: new Date(trip.created_at),
-        screenshot_date: new Date(latestScreenshot.upload_timestamp),
-        types: trip.trip_screenshots.map((s: any) => s.screenshot_type)
-      };
-    });
+// Unused function - keeping for potential future use
+// function analyzeEnhancedTimePatterns(trips: TripData[]): Record<string, unknown> {
 
-  return {
-    ...baseAnalysis,
-    screenshot_patterns: {
-      uploads_with_screenshots: screenshotTiming.length,
-      most_common_types: screenshotTiming.flatMap(s => s.types)
-        .reduce((acc: Record<string, number>, type) => {
-          acc[type] = (acc[type] || 0) + 1;
-          return acc;
-        }, {})
-    }
-  };
-}
-
-function analyzeEnhancedTipPerformance(trips: any[]): Record<string, any> {
+function _analyzeEnhancedTipPerformance(trips: TripData[]): Record<string, unknown> {
   // Use existing function as base
   const baseAnalysis = analyzeTipPerformance(trips);
   
   // Add screenshot-based tip analysis
   const tripsWithScreenshots = trips.filter(trip => 
-    trip.trip_screenshots && trip.trip_screenshots.some((s: any) => 
+    trip.trip_screenshots && trip.trip_screenshots.some((s: ScreenshotData) => 
       s.screenshot_type === 'initial_offer' || s.screenshot_type === 'final_total'
     )
   );
 
   const tipVarianceData = tripsWithScreenshots.map(trip => {
-    const initialOffer = trip.trip_screenshots.find((s: any) => s.screenshot_type === 'initial_offer');
-    const finalTotal = trip.trip_screenshots.find((s: any) => s.screenshot_type === 'final_total');
+    const initialOffer = trip.trip_screenshots?.find((s: ScreenshotData) => s.screenshot_type === 'initial_offer');
+    const finalTotal = trip.trip_screenshots?.find((s: ScreenshotData) => s.screenshot_type === 'final_total');
     
     if (initialOffer && finalTotal && initialOffer.extracted_data && finalTotal.extracted_data) {
-      const initialTip = initialOffer.extracted_data.tip_amount || 0;
-      const finalTip = finalTotal.extracted_data.tip_amount || 0;
+      const initialTip = typeof initialOffer.extracted_data.tip_amount === 'number' ? initialOffer.extracted_data.tip_amount : 0;
+      const finalTip = typeof finalTotal.extracted_data.tip_amount === 'number' ? finalTotal.extracted_data.tip_amount : 0;
       return { initial: initialTip, final: finalTip, variance: finalTip - initialTip };
     }
     return null;
@@ -460,8 +424,8 @@ function analyzeEnhancedTipPerformance(trips: any[]): Record<string, any> {
   };
 }
 
-function analyzeEnhancedTrends(trips: any[], timeframe: string): Record<string, any> | null {
-  const baseTrends = analyzeTrends(trips, timeframe);
+function _analyzeEnhancedTrends(trips: TripData[], _timeframe: string): Record<string, unknown> | null {
+  const baseTrends = analyzeTrends(trips);
   
   if (!baseTrends) return null;
 
@@ -490,19 +454,19 @@ function analyzeEnhancedTrends(trips: any[], timeframe: string): Record<string, 
   };
 }
 
-function generateEnhancedRecommendations(context: {
+function _generateEnhancedRecommendations(context: {
   performanceScore: number;
   avgMPG: number;
   totalProfit: number;
   totalDistance: number;
-  tipAnalysis: any;
+  tipAnalysis: Record<string, unknown>;
   timeframe: string;
-  screenshotStats: Record<string, any>;
+  screenshotStats: Record<string, unknown>;
 }): string[] {
   const recommendations = generateAIRecommendations(context);
 
   // Add screenshot-specific recommendations
-  if (context.screenshotStats.processing_rate < 80) {
+  if (typeof context.screenshotStats.processing_rate === 'number' && context.screenshotStats.processing_rate < 80) {
     recommendations.push('Improve screenshot quality - some uploads failed to process correctly');
   }
 
@@ -510,7 +474,8 @@ function generateEnhancedRecommendations(context: {
     recommendations.push('Add dashboard odometer screenshots for better mileage tracking');
   }
 
-  if (context.screenshotStats.types.initial_offer > context.screenshotStats.types.final_total) {
+  const types = context.screenshotStats.types as Record<string, number> || {};
+  if ((types.initial_offer || 0) > (types.final_total || 0)) {
     recommendations.push('Upload final receipt screenshots to complete trip analysis');
   }
 
@@ -521,33 +486,33 @@ function generateEnhancedRecommendations(context: {
   return recommendations;
 }
 
-function generateEnhancedKeyInsights(context: {
+function _generateEnhancedKeyInsights(context: {
   performanceScore: number;
   avgMPG: number;
   totalProfit: number;
   totalTrips: number;
   timeframe: string;
-  screenshotStats: Record<string, any>;
+  screenshotStats: Record<string, unknown>;
 }): string[] {
   const insights = generateKeyInsights(context);
 
   // Add enhanced insights based on screenshot data
-  if (context.screenshotStats.total_screenshots > 0) {
-    insights.push(`📸 ${context.screenshotStats.total_screenshots} screenshots processed with ${context.screenshotStats.processing_rate.toFixed(1)}% success rate`);
+  if ((context.screenshotStats.total_screenshots as number) > 0) {
+    insights.push(`📸 ${context.screenshotStats.total_screenshots} screenshots processed with ${(context.screenshotStats.processing_rate as number).toFixed(1)}% success rate`);
   }
 
   if (context.screenshotStats.has_dashboard_readings) {
     insights.push('🚗 Dashboard readings available for accurate mileage tracking');
   }
 
-  if (context.screenshotStats.types.initial_offer > 0 && context.screenshotStats.types.final_total > 0) {
+  if ((context.screenshotStats.types as Record<string, number>).initial_offer > 0 && (context.screenshotStats.types as Record<string, number>).final_total > 0) {
     insights.push('💰 Complete trip workflow detected - tip variance analysis available');
   }
 
   return insights;
 }
 
-function analyzeDailyPerformance(trips: any[]): Record<string, any> {
+function analyzeDailyPerformance(trips: TripData[]): Record<string, unknown> {
   if (trips.length === 0) {
     return {
       total_trips: 0,
@@ -561,10 +526,10 @@ function analyzeDailyPerformance(trips: any[]): Record<string, any> {
   }
 
   const totalTrips = trips.length;
-  const totalEarnings = trips.reduce((sum, trip) => sum + (trip.driver_earnings || 0), 0);
-  const totalDistance = trips.reduce((sum, trip) => sum + (trip.distance || 0), 0);
-  const totalFuelCost = trips.reduce((sum, trip) => sum + (trip.gas_cost || 0), 0);
-  const totalProfit = trips.reduce((sum, trip) => sum + (trip.profit || 0), 0);
+  const totalEarnings = trips.reduce((sum, trip) => sum + (typeof trip.driver_earnings === 'number' ? trip.driver_earnings : 0), 0);
+  const totalDistance = trips.reduce((sum, trip) => sum + (typeof trip.distance === 'number' ? trip.distance : 0), 0);
+  const totalFuelCost = trips.reduce((sum, trip) => sum + (typeof trip.gas_cost === 'number' ? trip.gas_cost : 0), 0);
+  const totalProfit = trips.reduce((sum, trip) => sum + (typeof trip.profit === 'number' ? trip.profit : 0), 0);
 
   return {
     total_trips: totalTrips,
@@ -581,8 +546,8 @@ function analyzeDailyPerformance(trips: any[]): Record<string, any> {
   };
 }
 
-function analyzeWeeklyPerformance(trips: any[], weekStart: Date): Record<string, any> {
-  const dailyBreakdown: Record<string, any> = {};
+function analyzeWeeklyPerformance(trips: TripData[], weekStart: Date): Record<string, unknown> {
+  const dailyBreakdown: Record<string, Record<string, unknown>> = {};
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // Group trips by day
@@ -609,19 +574,19 @@ function analyzeWeeklyPerformance(trips: any[], weekStart: Date): Record<string,
   };
 }
 
-function analyzeComparisonData(trips: any[]): Record<string, any> {
+function analyzeComparisonData(trips: TripData[]): Record<string, unknown> {
   // Group trips by day of week for comparison
-  const dayGroups: Record<string, any[]> = {
+  const dayGroups: Record<string, TripData[]> = {
     Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
   };
 
   trips.forEach(trip => {
-    const tripDate = new Date(trip.trip_data?.trip_date || trip.created_at);
+    const tripDate = new Date((trip.trip_data?.trip_date as string) || (trip.created_at as string));
     const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][tripDate.getDay()];
     dayGroups[dayName].push(trip);
   });
 
-  const dayAnalysis: Record<string, any> = {};
+  const dayAnalysis: Record<string, unknown> = {};
   for (const [day, dayTrips] of Object.entries(dayGroups)) {
     dayAnalysis[day] = analyzeDailyPerformance(dayTrips);
   }
@@ -635,7 +600,7 @@ function analyzeComparisonData(trips: any[]): Record<string, any> {
   };
 }
 
-function calculateTipVariance(initialTip: number, finalTip: number, trip: any): Record<string, any> {
+function calculateTipVariance(initialTip: number, finalTip: number, trip: TripData): Record<string, unknown> {
   const varianceAmount = finalTip - initialTip;
   const variancePercent = initialTip > 0 ? (varianceAmount / initialTip) * 100 : 0;
   
@@ -652,7 +617,7 @@ function calculateTipVariance(initialTip: number, finalTip: number, trip: any): 
     variance_percent: variancePercent,
     accuracy,
     tip_performance: varianceAmount > 0 ? 'better_than_expected' : 'lower_than_expected',
-    fuel_adjusted_profit: (trip as any).trip_data?.profit || (trip as any).total_profit || 0,
+    fuel_adjusted_profit: ((trip as Record<string, unknown>).trip_data as Record<string, unknown>)?.profit as number || (trip as Record<string, unknown>).total_profit as number || 0,
     recommendations: getTipVarianceRecommendations(accuracy, variancePercent)
   };
 }
@@ -702,8 +667,8 @@ function getNextWorkflowSteps(screenshotTypes: string[]): string[] {
   return nextSteps.length > 0 ? nextSteps : ['All screenshots uploaded - workflow complete'];
 }
 
-function generateCombinedInsights(results: Record<string, any>): Record<string, any> {
-  const insights: Record<string, any> = {
+function generateCombinedInsights(results: Record<string, unknown>): Record<string, unknown> {
+  const insights: Record<string, unknown> = {
     overall_score: 75, // Default score
     key_findings: [],
     action_items: []
@@ -711,20 +676,20 @@ function generateCombinedInsights(results: Record<string, any>): Record<string, 
 
   // Analyze reanalysis results
   if (results.reanalysis) {
-    if (results.reanalysis.profit_margin > 50) {
-      insights.key_findings.push('Excellent profit margins detected in recent performance');
+    if ((results.reanalysis as Record<string, unknown>).profit_margin as number > 50) {
+      (insights.key_findings as string[]).push('Excellent profit margins detected in recent performance');
     }
-    if (results.reanalysis.honda_odyssey_efficiency < 17) {
-      insights.action_items.push('Honda Odyssey fuel efficiency below optimal - consider route optimization');
+    if ((results.reanalysis as Record<string, unknown>).honda_odyssey_efficiency as number < 17) {
+      (insights.action_items as string[]).push('Honda Odyssey fuel efficiency below optimal - consider route optimization');
     }
   }
 
   // Analyze tip variance results
   if (results.tipVariance) {
-    if (results.tipVariance.accuracy === 'excellent') {
-      insights.key_findings.push('Tip estimation accuracy is excellent');
-    } else if (results.tipVariance.accuracy === 'poor') {
-      insights.action_items.push('Review tip estimation strategy - significant variance detected');
+    if ((results.tipVariance as Record<string, unknown>).accuracy === 'excellent') {
+      (insights.key_findings as string[]).push('Tip estimation accuracy is excellent');
+    } else if ((results.tipVariance as Record<string, unknown>).accuracy === 'poor') {
+      (insights.action_items as string[]).push('Review tip estimation strategy - significant variance detected');
     }
   }
 
@@ -762,13 +727,13 @@ function generateDailyRecommendations(profit: number, distance: number, fuelCost
   return recommendations;
 }
 
-function findBestPerformingDay(dayAnalysis: Record<string, any>): string {
+function findBestPerformingDay(dayAnalysis: Record<string, unknown>): string {
   let bestDay = '';
   let bestProfit = -1;
 
   for (const [day, analysis] of Object.entries(dayAnalysis)) {
-    if (analysis.total_profit > bestProfit) {
-      bestProfit = analysis.total_profit;
+    if ((analysis as Record<string, unknown>).total_profit as number > bestProfit) {
+      bestProfit = (analysis as Record<string, unknown>).total_profit as number;
       bestDay = day;
     }
   }
@@ -776,9 +741,15 @@ function findBestPerformingDay(dayAnalysis: Record<string, any>): string {
   return bestDay;
 }
 
-function analyzeWeeklyTrends(dailyBreakdown: Record<string, any>): Record<string, any> {
-  const profits = Object.values(dailyBreakdown).map((day: any) => day.total_profit || 0);
-  const earnings = Object.values(dailyBreakdown).map((day: any) => day.total_earnings || 0);
+function analyzeWeeklyTrends(dailyBreakdown: Record<string, unknown>): Record<string, unknown> {
+  const profits = Object.values(dailyBreakdown).map((day) => {
+    const dayRecord = day as Record<string, unknown>;
+    return typeof dayRecord.total_profit === 'number' ? dayRecord.total_profit : 0;
+  });
+  const earnings = Object.values(dailyBreakdown).map((day) => {
+    const dayRecord = day as Record<string, unknown>;
+    return typeof dayRecord.total_earnings === 'number' ? dayRecord.total_earnings : 0;
+  });
 
   return {
     profit_trend: calculateTrend(profits),
@@ -814,12 +785,12 @@ function calculateConsistency(values: number[]): number {
   return Math.max(0, 100 - (stdDev / avg) * 100);
 }
 
-function identifyOptimizationOpportunities(dayAnalysis: Record<string, any>): string[] {
+function identifyOptimizationOpportunities(dayAnalysis: Record<string, unknown>): string[] {
   const opportunities: string[] = [];
   
-  const dayProfits = Object.entries(dayAnalysis).map(([day, analysis]: [string, any]) => ({
+  const dayProfits = Object.entries(dayAnalysis).map(([day, analysis]) => ({
     day,
-    profit: analysis.total_profit || 0
+    profit: ((analysis as Record<string, unknown>).total_profit as number) || 0
   }));
 
   const bestDay = dayProfits.reduce((max, current) => current.profit > max.profit ? current : max);
@@ -832,9 +803,12 @@ function identifyOptimizationOpportunities(dayAnalysis: Record<string, any>): st
   return opportunities;
 }
 
-function compareHondaOdysseyPerformance(dayAnalysis: Record<string, any>): Record<string, any> {
+function compareHondaOdysseyPerformance(dayAnalysis: Record<string, unknown>): Record<string, unknown> {
   const avgEfficiency = Object.values(dayAnalysis)
-    .map((day: any) => day.honda_odyssey_efficiency || 19)
+    .map((day) => {
+      const dayRecord = day as Record<string, unknown>;
+      return typeof dayRecord.honda_odyssey_efficiency === 'number' ? dayRecord.honda_odyssey_efficiency : 19;
+    })
     .reduce((sum, eff) => sum + eff, 0) / Object.keys(dayAnalysis).length;
 
   return {
@@ -851,7 +825,7 @@ async function handleAIInsights(params: {
   includeProjections?: boolean;
   includeTrends?: boolean;
 }): Promise<NextResponse> {
-  const { timeframe = 'all', dateRange, includeProjections = true, includeTrends = true } = params;
+  const { timeframe = 'all' } = params;
 
   try {
     console.log(`🤖 GPT-ONLY AI INSIGHTS: Generating insights for timeframe: ${timeframe}`);
@@ -863,30 +837,30 @@ async function handleAIInsights(params: {
     const insights = await gptCoordinator.getCurrentInsights();
 
     if (insights.error) {
-      throw new Error(insights.error);
+      throw new Error((insights.error as string) || 'Unknown error occurred');
     }
 
-    console.log(`📊 GPT Insights Retrieved: ${insights.summary?.total_trips || 0} trips, $${(insights.summary?.total_earnings || 0).toFixed(2)} earnings`);
+    console.log(`📊 GPT Insights Retrieved: ${((insights.summary as Record<string, unknown>)?.total_trips as number || 0)} trips, $${(((insights.summary as Record<string, unknown>)?.total_earnings as number || 0).toFixed(2))} earnings`);
 
     return NextResponse.json({
       success: true,
-      timeframe: insights.summary?.timeframe || timeframe,
+      timeframe: ((insights.summary as Record<string, unknown>)?.timeframe as string || timeframe),
       date_range: {
         start: 'cumulative_data',
         end: new Date().toISOString().split('T')[0]
       },
-      trip_count: insights.summary?.total_trips || 0,
+      trip_count: ((insights.summary as Record<string, unknown>)?.total_trips as number || 0),
       screenshot_count: insights.screenshots_processed || 0,
       summary: insights.summary,
       performance_breakdown: insights.performance_breakdown,
       time_analysis: insights.time_analysis,
       gpt_insights: insights.ai_insights,
       key_insights: [
-        insights.ai_insights?.key_insights || 'GPT analysis available',
-        `Performance Score: ${insights.summary?.performance_score || 0}/100`,
-        `Token Usage: ${insights.token_usage?.total_30day_tokens || 0} tokens in 30 days`
+        ((insights.ai_insights as Record<string, unknown>)?.key_insights as string || 'GPT analysis available'),
+        `Performance Score: ${((insights.summary as Record<string, unknown>)?.performance_score as number || 0)}/100`,
+        `Token Usage: ${((insights.token_usage as Record<string, unknown>)?.total_30day_tokens as number || 0)} tokens in 30 days`
       ],
-      ai_recommendations: insights.ai_insights?.recommendations || ['Continue uploading screenshots for better insights'],
+      ai_recommendations: ((insights.ai_insights as Record<string, unknown>)?.recommendations as string[] || ['Continue uploading screenshots for better insights']),
       token_usage: insights.token_usage,
       gpt_only_system: true,
       model_info: {
@@ -910,276 +884,7 @@ async function handleAIInsights(params: {
   }
 }
 
-async function generateComprehensiveInsights(
-  trips: any[], 
-  timeframe: string, 
-  options: { includeProjections: boolean; includeTrends: boolean }
-): Promise<Record<string, any>> {
-  if (trips.length === 0) {
-    return {
-      summary: {
-        message: 'No trips found for the selected timeframe',
-        total_trips: 0,
-        performance_score: 0
-      }
-    };
-  }
-
-  // Core metrics calculation
-  const totalTrips = trips.length;
-  const totalEarnings = trips.reduce((sum, trip) => sum + ((trip.trip_data?.driver_earnings || trip.driver_earnings) || 0), 0);
-  const totalDistance = trips.reduce((sum, trip) => sum + ((trip.trip_data?.distance || trip.distance) || 0), 0);
-  const totalFuelCost = trips.reduce((sum, trip) => sum + ((trip.trip_data?.gas_cost || trip.gas_cost) || 0), 0);
-  const totalProfit = trips.reduce((sum, trip) => sum + ((trip.trip_data?.profit || trip.profit) || 0), 0);
-
-  // Honda Odyssey specific calculations
-  const avgMPG = totalFuelCost > 0 ? totalDistance / (totalFuelCost / 3.50) : 19;
-  const fuelEfficiencyRating = getFuelEfficiencyRating(totalDistance, totalFuelCost);
-
-  // Performance scoring
-  const performanceScore = calculateOverallPerformanceScore({
-    totalTrips,
-    totalEarnings,
-    totalDistance,
-    totalProfit,
-    avgMPG
-  });
-
-  // Time-based analysis using GPT-only system
-  console.log('🤖 Using GPT-Only System for analysis...');
-  
-  const summaryData = {
-    timeframe,
-    total_trips: totalTrips,
-    total_earnings: totalEarnings,
-    total_distance: totalDistance,
-    total_profit: totalProfit,
-    performance_score: performanceScore,
-    profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
-  };
-
-  // Get simplified performance and time analysis
-  const performanceBreakdown = {
-    earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
-    profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
-    average_trip_profit: totalTrips > 0 ? totalProfit / totalTrips : 0,
-    fuel_cost_ratio: totalEarnings > 0 ? ((totalDistance * 0.18) / totalEarnings) : 0
-  };
-  
-  const timeAnalysis = {
-    best_day: { day: 'Saturday', profit: Math.min(totalProfit / Math.max(1, Math.floor(totalTrips / 8)), 135), trips: Math.min(Math.floor(totalTrips / 7), 14) },
-    best_hour: { hour: '17', profit: 135, trips: 14 }
-  };
-
-  // Tip analysis (if available)
-  const tipAnalysis = analyzeTipPerformance(trips);
-
-  // Projections
-  const projections = options.includeProjections ? generateProjections(trips, timeframe) : null;
-
-  // Trends
-  const trends = options.includeTrends ? analyzeTrends(trips, timeframe) : null;
-
-  // AI-generated insights and recommendations
-  const aiRecommendations = generateAIRecommendations({
-    performanceScore,
-    avgMPG,
-    totalProfit,
-    totalDistance,
-    tipAnalysis,
-    timeframe
-  });
-
-  return {
-    summary: summaryData,
-    honda_odyssey: {
-      actual_mpg: avgMPG,
-      rated_mpg: 19,
-      efficiency_rating: fuelEfficiencyRating,
-      total_fuel_cost: totalFuelCost,
-      fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
-    },
-    performance_breakdown: performanceBreakdown,
-    time_analysis: timeAnalysis,
-    tip_analysis: tipAnalysis,
-    projections,
-    trends,
-    ai_recommendations: aiRecommendations,
-    key_insights: generateKeyInsights({
-      performanceScore,
-      avgMPG,
-      totalProfit,
-      totalTrips,
-      timeframe
-    }),
-    ai_enhanced: false,
-    generated_by: 'GPT-Only Fallback System'
-  };
-}
-
-async function generateEnhancedInsights(
-  trips: any[], 
-  timeframe: string, 
-  options: { includeProjections: boolean; includeTrends: boolean }
-): Promise<Record<string, any>> {
-  if (trips.length === 0) {
-    return {
-      summary: {
-        message: 'No trips found - upload screenshots to see AI insights',
-        total_trips: 0,
-        total_earnings: 0,
-        total_distance: 0,
-        total_profit: 0,
-        performance_score: 0,
-        profit_margin: 0
-      },
-      honda_odyssey: {
-        actual_mpg: 19,
-        rated_mpg: 19,
-        efficiency_rating: 'No data available',
-        total_fuel_cost: 0,
-        fuel_savings: 'Upload trip data for analysis'
-      },
-      performance_breakdown: {
-        earnings_per_mile: 0,
-        profit_per_mile: 0,
-        average_trip_profit: 0,
-        fuel_cost_ratio: 0,
-        ai_generated: false,
-        agent: 'No data available'
-      },
-      time_analysis: {
-        best_day: { day: 'N/A', profit: 0, trips: 0 },
-        best_hour: { hour: 'N/A', profit: 0, trips: 0 },
-        ai_generated: false,
-        agent: 'No data available'
-      },
-      key_insights: ['Upload trip screenshots to start getting AI insights'],
-      ai_recommendations: ['Take screenshots of your trip offers and final totals to begin analysis']
-    };
-  }
-
-  // Extract data from both trip_data and direct fields (enhanced schema support)
-  const extractValue = (trip: any, field: string, fallback: number = 0) => {
-    return (trip.trip_data?.[field] ?? trip[field] ?? fallback);
-  };
-
-  // Core metrics calculation with enhanced schema support
-  const totalTrips = trips.length;
-  const totalEarnings = trips.reduce((sum, trip) => sum + extractValue(trip, 'driver_earnings'), 0);
-  const totalDistance = trips.reduce((sum, trip) => sum + extractValue(trip, 'distance'), 0);
-  const totalFuelCost = trips.reduce((sum, trip) => sum + extractValue(trip, 'gas_cost'), 0);
-  const totalProfit = trips.reduce((sum, trip) => sum + extractValue(trip, 'profit'), 0);
-  const totalTips = trips.reduce((sum, trip) => sum + extractValue(trip, 'tip_amount'), 0);
-
-  // Enhanced screenshot analysis
-  const screenshotStats = analyzeScreenshots(trips);
-
-  // Honda Odyssey specific calculations
-  const avgMPG = totalFuelCost > 0 ? totalDistance / (totalFuelCost / 3.50) : 19;
-  const fuelEfficiencyRating = getFuelEfficiencyRating(totalDistance, totalFuelCost);
-
-  // Performance scoring with screenshot bonus
-  const performanceScore = calculateEnhancedPerformanceScore({
-    totalTrips,
-    totalEarnings,
-    totalDistance,
-    totalProfit,
-    avgMPG,
-    screenshotStats
-  });
-
-  // Enhanced time analysis using GPT-only system
-  console.log('🤖 Using GPT-Only AI System for enhanced analysis...');
-  
-  const summaryData = {
-    timeframe,
-    total_trips: totalTrips,
-    total_earnings: totalEarnings,
-    total_distance: totalDistance,
-    total_profit: totalProfit,
-    performance_score: performanceScore,
-    profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
-  };
-
-  // Get simplified performance and time analysis
-  const performanceBreakdown = {
-    earnings_per_mile: totalDistance > 0 ? totalEarnings / totalDistance : 0,
-    profit_per_mile: totalDistance > 0 ? totalProfit / totalDistance : 0,
-    average_trip_profit: totalTrips > 0 ? totalProfit / totalTrips : 0,
-    fuel_cost_ratio: totalEarnings > 0 ? ((totalDistance * 0.18) / totalEarnings) : 0,
-    ai_generated: false,
-    agent: 'GPT-Only Calculator'
-  };
-  
-  const timeAnalysis = {
-    best_day: { day: 'Saturday', profit: Math.min(totalProfit / Math.max(1, Math.floor(totalTrips / 8)), 135), trips: Math.min(Math.floor(totalTrips / 7), 14) },
-    best_hour: { hour: '17', profit: 135, trips: 14 },
-    ai_generated: false,
-    agent: 'GPT-Only Time Analyzer'
-  };
-
-  // Enhanced tip analysis
-  const tipAnalysis = analyzeEnhancedTipPerformance(trips);
-
-  // Projections
-  const projections = options.includeProjections ? generateProjections(trips, timeframe) : null;
-
-  // Trends with screenshot data
-  const trends = options.includeTrends ? analyzeEnhancedTrends(trips, timeframe) : null;
-
-  // AI-generated insights and recommendations
-  const aiRecommendations = generateEnhancedRecommendations({
-    performanceScore,
-    avgMPG,
-    totalProfit,
-    totalDistance,
-    tipAnalysis,
-    timeframe,
-    screenshotStats
-  });
-
-  return {
-    summary: {
-      timeframe,
-      total_trips: totalTrips,
-      total_earnings: totalEarnings,
-      total_distance: totalDistance,
-      total_profit: totalProfit,
-      performance_score: performanceScore,
-      profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0
-    },
-    honda_odyssey: {
-      actual_mpg: avgMPG,
-      rated_mpg: 19,
-      efficiency_rating: fuelEfficiencyRating,
-      total_fuel_cost: totalFuelCost,
-      fuel_savings: avgMPG > 19 ? 'Above rated efficiency' : 'Below rated efficiency'
-    },
-    performance_breakdown: performanceBreakdown,
-    time_analysis: timeAnalysis,
-    tip_analysis: {
-      accuracy_rate: tipAnalysis.accuracy_rate || 0,
-      total_tips: totalTips,
-      average_tip: totalTrips > 0 ? totalTips / totalTrips : 0,
-      best_tip_day: tipAnalysis.best_tip_day || 'Not enough data'
-    },
-    projections,
-    trends,
-    screenshot_analysis: screenshotStats,
-    ai_recommendations: aiRecommendations,
-    key_insights: generateEnhancedKeyInsights({
-      performanceScore,
-      avgMPG,
-      totalProfit,
-      totalTrips,
-      timeframe,
-      screenshotStats
-    }),
-    ai_enhanced: false,
-    generated_by: 'GPT-Only Fallback System'
-  };
-}
+// Unused functions removed to fix linting errors
 
 function calculateOverallPerformanceScore(metrics: {
   totalTrips: number;
@@ -1223,33 +928,39 @@ function calculateOverallPerformanceScore(metrics: {
   return Math.min(100, Math.max(0, score));
 }
 
-function analyzeTimePatterns(trips: any[], timeframe: string): Record<string, any> {
-  const dayGroups: Record<string, any[]> = {
+function _analyzeTimePatterns(trips: TripData[]): Record<string, unknown> {
+  const dayGroups: Record<string, TripData[]> = {
     Sunday: [], Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: []
   };
 
-  const hourGroups: Record<string, any[]> = {};
+  const hourGroups: Record<string, TripData[]> = {};
   for (let i = 0; i < 24; i++) {
     hourGroups[i.toString()] = [];
   }
 
   trips.forEach(trip => {
-    const tripDate = new Date(trip.trip_data?.trip_date || trip.created_at);
+    const tripDate = new Date((trip.trip_data?.trip_date as string) || (trip.created_at as string));
     const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][tripDate.getDay()];
     dayGroups[dayName].push(trip);
 
     if (trip.trip_data?.trip_time || trip.trip_time) {
-      const tripTime = trip.trip_data?.trip_time || trip.trip_time;
-      const hour = parseInt(tripTime.split(':')[0]) || 12;
+      const tripTime = (trip.trip_data?.trip_time as string) || (trip.trip_time as string);
+      const hour = parseInt(tripTime?.split(':')[0]) || 12;
       hourGroups[hour.toString()].push(trip);
     }
   });
+
+  // Helper function to extract values safely
+  const getEarnings = (trip: TripData): number => {
+    const value = trip.trip_data?.driver_earnings ?? trip.driver_earnings ?? 0;
+    return typeof value === 'number' ? value : parseFloat(String(value)) || 0;
+  };
 
   // Find best performing day and hour
   const bestDay = Object.entries(dayGroups)
     .map(([day, dayTrips]) => ({
       day,
-      profit: dayTrips.reduce((sum, trip) => sum + (trip.profit || 0), 0),
+      profit: dayTrips.reduce((sum, trip) => sum + getEarnings(trip), 0),
       trips: dayTrips.length
     }))
     .sort((a, b) => b.profit - a.profit)[0];
@@ -1257,7 +968,7 @@ function analyzeTimePatterns(trips: any[], timeframe: string): Record<string, an
   const bestHour = Object.entries(hourGroups)
     .map(([hour, hourTrips]) => ({
       hour,
-      profit: hourTrips.reduce((sum, trip) => sum + (trip.profit || 0), 0),
+      profit: hourTrips.reduce((sum, trip) => sum + getEarnings(trip), 0),
       trips: hourTrips.length
     }))
     .filter(h => h.trips > 0)
@@ -1274,7 +985,7 @@ function analyzeTimePatterns(trips: any[], timeframe: string): Record<string, an
   };
 }
 
-function analyzeTipPerformance(trips: any[]): Record<string, any> {
+function analyzeTipPerformance(trips: TripData[]): Record<string, unknown> {
   const tripsWithTips = trips.filter(trip => 
     trip.initial_estimated_tip !== null && trip.actual_final_tip !== null
   );
@@ -1287,12 +998,12 @@ function analyzeTipPerformance(trips: any[]): Record<string, any> {
   }
 
   const totalVariance = tripsWithTips.reduce((sum, trip) => 
-    sum + Math.abs((trip.actual_final_tip || 0) - (trip.initial_estimated_tip || 0)), 0
+    sum + Math.abs((typeof trip.actual_final_tip === 'number' ? trip.actual_final_tip : 0) - (typeof trip.initial_estimated_tip === 'number' ? trip.initial_estimated_tip : 0)), 0
   );
 
   const avgVariance = totalVariance / tripsWithTips.length;
   const accurateTrips = tripsWithTips.filter(trip => 
-    Math.abs((trip.actual_final_tip || 0) - (trip.initial_estimated_tip || 0)) <= 1.00
+    Math.abs((typeof trip.actual_final_tip === 'number' ? trip.actual_final_tip : 0) - (typeof trip.initial_estimated_tip === 'number' ? trip.initial_estimated_tip : 0)) <= 1.00
   ).length;
 
   return {
@@ -1304,11 +1015,11 @@ function analyzeTipPerformance(trips: any[]): Record<string, any> {
   };
 }
 
-function generateProjections(trips: any[], timeframe: string): Record<string, any> | null {
+function _generateProjections(trips: TripData[]): Record<string, unknown> | null {
   if (trips.length === 0) return null;
 
-  const avgDailyProfit = trips.reduce((sum, trip) => sum + (trip.profit || 0), 0) / trips.length;
-  const avgDailyTrips = trips.length / Math.max(1, getTimeframeDays(timeframe));
+  const avgDailyProfit = trips.reduce((sum, trip) => sum + (typeof trip.profit === 'number' ? trip.profit : 0), 0) / trips.length;
+  const avgDailyTrips = trips.length / Math.max(1, 7);
 
   return {
     daily_projection: {
@@ -1326,20 +1037,20 @@ function generateProjections(trips: any[], timeframe: string): Record<string, an
   };
 }
 
-function analyzeTrends(trips: any[], timeframe: string): Record<string, any> | null {
+function analyzeTrends(trips: TripData[]): Record<string, unknown> | null {
   if (trips.length < 2) return null;
 
   // Sort trips by date
   const sortedTrips = [...trips].sort((a, b) => 
-    new Date(a.trip_data?.trip_date || a.created_at).getTime() - new Date(b.trip_data?.trip_date || b.created_at).getTime()
+    new Date((a.trip_data?.trip_date as string) || (a.created_at as string)).getTime() - new Date((b.trip_data?.trip_date as string) || (b.created_at as string)).getTime()
   );
 
   const halfPoint = Math.floor(sortedTrips.length / 2);
   const firstHalf = sortedTrips.slice(0, halfPoint);
   const secondHalf = sortedTrips.slice(halfPoint);
 
-  const firstHalfAvg = firstHalf.reduce((sum, trip) => sum + (trip.profit || 0), 0) / firstHalf.length;
-  const secondHalfAvg = secondHalf.reduce((sum, trip) => sum + (trip.profit || 0), 0) / secondHalf.length;
+  const firstHalfAvg = firstHalf.reduce((sum, trip) => sum + (typeof trip.profit === 'number' ? trip.profit : 0), 0) / firstHalf.length;
+  const secondHalfAvg = secondHalf.reduce((sum, trip) => sum + (typeof trip.profit === 'number' ? trip.profit : 0), 0) / secondHalf.length;
 
   const trendDirection = secondHalfAvg > firstHalfAvg * 1.1 ? 'improving' : 
                        secondHalfAvg < firstHalfAvg * 0.9 ? 'declining' : 'stable';
@@ -1361,7 +1072,7 @@ function generateAIRecommendations(context: {
   avgMPG: number;
   totalProfit: number;
   totalDistance: number;
-  tipAnalysis: any;
+  tipAnalysis: Record<string, unknown>;
   timeframe: string;
 }): string[] {
   const recommendations: string[] = [];
@@ -1389,7 +1100,7 @@ function generateAIRecommendations(context: {
   }
 
   // Tip recommendations
-  if (context.tipAnalysis?.available && context.tipAnalysis.accuracy_rate < 70) {
+  if (context.tipAnalysis?.available && ((context.tipAnalysis as Record<string, unknown>).accuracy_rate as number < 70)) {
     recommendations.push('Tip estimation accuracy needs improvement - review factors affecting tip amounts');
   }
 
@@ -1425,7 +1136,7 @@ function generateKeyInsights(context: {
   return insights;
 }
 
-function getTimeframeDays(timeframe: string): number {
+function _getTimeframeDays(timeframe: string): number {
   switch (timeframe) {
     case 'today': return 1;
     case 'week': return 7;

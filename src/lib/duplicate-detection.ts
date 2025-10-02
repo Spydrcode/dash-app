@@ -33,16 +33,15 @@ export function generatePerceptualHash(buffer: Buffer): string {
  */
 export async function checkForDuplicate(
   fileBuffer: Buffer,
-  fileName: string,
-  fileSize: number
+  fileName: string
 ): Promise<DuplicateCheckResult> {
   try {
     const fileHash = generateFileHash(fileBuffer);
-    const perceptualHash = generatePerceptualHash(fileBuffer);
+    // const perceptualHash = generatePerceptualHash(fileBuffer); // TODO: Use when database supports it
 
     // Since the database doesn't have the new columns yet, we'll use a simpler approach
     // First, check if we've seen this exact file hash in this session (memory-based)
-    const globalThis = global as any;
+    const globalThis = global as Record<string, unknown> & { uploadedHashes?: Set<string> };
     if (typeof globalThis !== 'undefined') {
       globalThis.uploadedHashes = globalThis.uploadedHashes || new Set();
       if (globalThis.uploadedHashes.has(fileHash)) {
@@ -57,9 +56,9 @@ export async function checkForDuplicate(
 
     // Check existing screenshots for similar patterns
     // Look for files with similar size and recent upload patterns
-    const sizeTolerance = 0.02; // 2% tolerance for file size
-    const minSize = Math.max(1, fileSize * (1 - sizeTolerance));
-    const maxSize = fileSize * (1 + sizeTolerance);
+    // const sizeTolerance = 0.02; // 2% tolerance for file size
+    // const minSize = Math.max(1, fileSize * (1 - sizeTolerance));
+    // const maxSize = fileSize * (1 + sizeTolerance);
 
     // Get recent uploads to check for potential duplicates
     const recentTimeThreshold = new Date();
@@ -74,7 +73,7 @@ export async function checkForDuplicate(
 
     if (recentScreenshots && recentScreenshots.length > 0) {
       // Check for suspicious patterns like many uploads in short time
-      const recentUploadsCount = recentScreenshots.length;
+      // const recentUploadsCount = recentScreenshots.length;
       const lastHour = new Date();
       lastHour.setHours(lastHour.getHours() - 1);
       

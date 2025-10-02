@@ -1,12 +1,8 @@
-// Test the new AI agents directly
-const {
-  SpecializedAICoordinator,
-} = require("../src/lib/specialized-ai-agents.ts");
+// Test file for AI agents - specialized agents removed (moved to GPT-only)
+// Import your GPT-based agents here instead
 
 async function testAIAgents() {
-  console.log(
-    "🧪 Testing AI-powered Performance Breakdown and Time Analysis..."
-  );
+  console.log("🧪 Testing would need to be updated for GPT-based agents...");
 
   // Mock trip data for testing
   const mockTrips = [

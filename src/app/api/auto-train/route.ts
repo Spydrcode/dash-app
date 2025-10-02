@@ -10,7 +10,7 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, options = {} } = await request.json();
+    const { action } = await request.json();
     
     if (action !== 'auto_train') {
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -189,24 +189,24 @@ export async function GET(request: NextRequest) {
 }
 
 // Generate recommendations based on training results
-function generateTrainingRecommendations(stats: any): string[] {
+function generateTrainingRecommendations(stats: Record<string, unknown>): string[] {
   const recommendations = [];
 
   if (stats.training_quality === 'INSUFFICIENT_DATA') {
     recommendations.push('Upload more screenshots to improve AI accuracy');
   }
 
-  if (stats.successful_extractions < 10) {
+  if ((stats.successful_extractions as number) < 10) {
     recommendations.push('Focus on uploading clear, high-quality screenshots for better training');
   }
 
-  if (stats.patterns_learned > 20) {
+  if ((stats.patterns_learned as number) > 20) {
     recommendations.push('🎉 Excellent training! Your AI should now be much more accurate');
-  } else if (stats.patterns_learned > 10) {
+  } else if ((stats.patterns_learned as number) > 10) {
     recommendations.push('✅ Good training progress! Consider uploading a few more screenshots');
   }
 
-  if (stats.rules_adapted > 2) {
+  if ((stats.rules_adapted as number) > 2) {
     recommendations.push('📊 Validation rules adapted to your driving patterns - expect more realistic insights');
   }
 

@@ -2,11 +2,11 @@
 // This endpoint tests the new data cleaning and validation system
 
 import { ENHANCED_RIDESHARE_VALIDATION_RULES, EnhancedTripDataValidator } from '@/lib/enhanced-data-validator';
-import { SpecializedAICoordinator } from '@/lib/specialized-ai-agents';
+import { GPTAIInsightsCoordinator } from '@/lib/gpt-ai-insight-agents';
 import { supabaseAdmin } from '@/lib/supabase';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🧪 Testing enhanced data validation and AI agents...');
 
@@ -42,34 +42,23 @@ export async function GET(request: NextRequest) {
     const qualityReport = validator.generateDataQualityReport(trips);
     console.log('📊 Data quality report:', qualityReport);
 
-    // Test 3: Specialized AI Agents (if we have processed trips)
+    // Test 3: GPT-based AI Analysis (if we have processed trips)
     let aiAnalysis = null;
     if (dataProcessing.processedTrips.length > 0) {
       try {
-        const aiCoordinator = new SpecializedAICoordinator();
+        console.log('🤖 Running GPT-based AI analysis...');
         
-        // Create summary for AI analysis
-        const summary = {
-          total_trips: dataProcessing.processedTrips.length,
-          total_earnings: dataProcessing.processedTrips.reduce((sum, trip) => 
-            sum + (trip.trip_data?.driver_earnings || trip.driver_earnings || 0), 0),
-          total_distance: dataProcessing.processedTrips.reduce((sum, trip) => 
-            sum + (trip.trip_data?.distance || trip.distance || 0), 0),
-          total_profit: dataProcessing.processedTrips.reduce((sum, trip) => 
-            sum + (trip.trip_data?.profit || trip.profit || 0), 0),
-          performance_score: 75
-        };
-
-        aiAnalysis = await aiCoordinator.generateEnhancedInsights(
+        // Use GPT AI coordinator for enhanced insights
+        aiAnalysis = await GPTAIInsightsCoordinator.generateCompleteInsights(
           dataProcessing.processedTrips.slice(0, 20), // Test with first 20 trips
-          summary
+          'validation_test'
         );
 
-        console.log('🤖 AI analysis completed successfully');
+        console.log('🤖 GPT AI analysis completed successfully');
       } catch (aiError) {
-        console.error('⚠️ AI analysis failed:', aiError);
+        console.error('⚠️ GPT AI analysis failed:', aiError);
         aiAnalysis = { 
-          error: 'AI analysis failed', 
+          error: 'GPT AI analysis failed', 
           message: aiError instanceof Error ? aiError.message : 'Unknown AI error'
         };
       }
@@ -109,7 +98,7 @@ export async function GET(request: NextRequest) {
         adaptive_enabled: ENHANCED_RIDESHARE_VALIDATION_RULES.enableAdaptiveLimits,
         strict_mode: ENHANCED_RIDESHARE_VALIDATION_RULES.strictMode
       },
-      ollama_status: await checkOllamaStatus()
+      openai_status: await checkOpenAIStatus()
     });
 
   } catch (error) {
@@ -124,15 +113,31 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to check Ollama status
-async function checkOllamaStatus(): Promise<any> {
+// Helper function to check OpenAI API status
+async function checkOpenAIStatus(): Promise<Record<string, unknown>> {
   try {
-    const response = await fetch('http://localhost:11434/api/tags');
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return { available: false, reason: 'API key not configured' };
+    }
+
+    const response = await fetch('https://api.openai.com/v1/models', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
     if (response.ok) {
       const data = await response.json();
+      const gptModels = data.data?.filter((m: { id: string }) => 
+        m.id.includes('gpt-4') || m.id.includes('gpt-3.5')
+      ).map((m: { id: string }) => m.id) || [];
+      
       return {
         available: true,
-        models: data.models?.map((m: any) => m.name) || []
+        models: gptModels,
+        vision_available: gptModels.some((m: string) => m.includes('gpt-4'))
       };
     }
     return { available: false, reason: `HTTP ${response.status}` };

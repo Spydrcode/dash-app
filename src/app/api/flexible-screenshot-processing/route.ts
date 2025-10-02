@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     // Process screenshot with flexible data detection
     const screenshotData = await processor.processScreenshot(
       imageBase64,
-      screenshotType
+      screenshotType || "unknown"
     );
 
     console.log(`📊 Screenshot analysis complete:`, {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       insights: insights,
       recommendations: generateRecommendations(
         screenshotData,
-        combinedTripData
+        combinedTripData || undefined
       ),
     });
   } catch (error) {
@@ -139,7 +139,9 @@ async function convertImageToBase64(imagePath: string): Promise<string> {
 }
 
 // Combine all screenshots for a trip to build complete picture
-async function combineScreenshotsForTrip(tripId: string): Promise<any> {
+async function combineScreenshotsForTrip(
+  tripId: string
+): Promise<Record<string, unknown> | null> {
   try {
     const { data: screenshots, error } = await supabaseAdmin
       .from("trip_screenshots")
@@ -158,7 +160,14 @@ async function combineScreenshotsForTrip(tripId: string): Promise<any> {
     // Convert to ScreenshotDataStructure format
     const screenshotStructures: ScreenshotDataStructure[] = screenshots.map(
       (s) => ({
-        screenshot_type: s.screenshot_type as any,
+        screenshot_type:
+          (s.screenshot_type as
+            | "initial_offer"
+            | "final_total"
+            | "dashboard_odometer"
+            | "earnings_summary"
+            | "map_route"
+            | "unknown") || "unknown",
         data_confidence: s.data_confidence || 0.5,
         detected_elements: Object.keys(s.extracted_data || {}),
         extracted_data: s.extracted_data || {},
@@ -207,7 +216,7 @@ function generateScreenshotInsights(
       const distance = screenshotData.extracted_data.distance;
 
       if (estimatedFare && distance) {
-        const farePerMile = estimatedFare / distance;
+        const farePerMile = (estimatedFare as number) / (distance as number);
         insights.push(
           `Initial offer: $${estimatedFare} for ${distance} miles ($${farePerMile.toFixed(
             2
@@ -234,7 +243,7 @@ function generateScreenshotInsights(
         if (actualTip) {
           insights.push(
             `Tip received: $${actualTip} (${(
-              (actualTip / totalEarnings) *
+              ((actualTip as number) / (totalEarnings as number)) *
               100
             ).toFixed(1)}% of total)`
           );
@@ -253,12 +262,12 @@ function generateScreenshotInsights(
       }
       break;
 
-    case "trip_summary":
+    case "earnings_summary":
       const totalTrips = screenshotData.extracted_data.total_trips;
       const summaryEarnings = screenshotData.extracted_data.total_earnings;
 
       if (totalTrips && summaryEarnings) {
-        const avgPerTrip = summaryEarnings / totalTrips;
+        const avgPerTrip = (summaryEarnings as number) / (totalTrips as number);
         insights.push(
           `Summary: ${totalTrips} trips, $${summaryEarnings} total ($${avgPerTrip.toFixed(
             2
@@ -282,7 +291,7 @@ function generateScreenshotInsights(
 // Generate recommendations based on screenshot data
 function generateRecommendations(
   screenshotData: ScreenshotDataStructure,
-  combinedData?: any
+  combinedData?: Record<string, unknown>
 ): string[] {
   const recommendations: string[] = [];
 
@@ -330,7 +339,10 @@ function generateRecommendations(
 
   // Combined data recommendations
   if (combinedData) {
-    if (combinedData.estimated_profit) {
+    if (
+      typeof combinedData.estimated_profit === "number" &&
+      typeof combinedData.distance === "number"
+    ) {
       const profitPerMile =
         combinedData.estimated_profit / (combinedData.distance || 1);
       if (profitPerMile < 1.0) {
@@ -340,7 +352,10 @@ function generateRecommendations(
       }
     }
 
-    if (combinedData.combined_confidence < 0.8) {
+    if (
+      typeof combinedData.combined_confidence === "number" &&
+      combinedData.combined_confidence < 0.8
+    ) {
       recommendations.push(
         "🔍 Upload additional screenshots to improve trip data completeness"
       );

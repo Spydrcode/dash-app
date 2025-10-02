@@ -4,8 +4,8 @@ import { RIDESHARE_VALIDATION_RULES, TripDataValidator } from './data-validator'
 export interface TripScreenshotData {
   id: string;
   screenshot_type: 'initial_offer' | 'final_total' | 'dashboard' | 'map';
-  ocr_data: any;
-  extracted_data: any;
+  ocr_data: Record<string, unknown>;
+  extracted_data: Record<string, unknown>;
   trip_id: string;
   upload_timestamp: string;
 }
@@ -13,14 +13,21 @@ export interface TripScreenshotData {
 export interface TripData {
   id: string;
   driver_id?: string;
-  trip_data: any; // JSON column containing trip details
+  trip_data?: {
+    trip_date?: string;
+    profit?: string | number;
+    driver_earnings?: string | number;
+    fare_amount?: string | number;
+    total_trips?: string | number;
+    [key: string]: unknown;
+  };
   trip_screenshots?: TripScreenshotData[];
   created_at: string;
   upload_date?: string;
   total_profit?: number;
   total_distance?: number;
   vehicle_model?: string;
-  [key: string]: any; // Allow for flexible database schema
+  [key: string]: unknown; // Allow for flexible database schema
 }
 
 // Initialize validator for quality insights (not data filtering)
@@ -53,9 +60,9 @@ export class TimeAnalysisAgent {
       const dayName = days[date.getDay()];
       
       // Use ACTUAL profit/earnings from database
-      const profit = parseFloat(trip.total_profit || trip.trip_data?.profit || 0);
-      const earnings = parseFloat(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const earnings = parseFloat(String(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
       
       if (!dayGroups[dayName]) {
         dayGroups[dayName] = { profit: 0, trips: 0, earnings: 0 };
@@ -86,7 +93,7 @@ export class TimeAnalysisAgent {
 
 // Simple AI Insights Coordinator that reports REAL data
 export class AIInsightsCoordinator {
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, options: any) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string, _options: Record<string, unknown>) {
     console.log(`🤖 AI Insights Coordinator: Analyzing ${trips.length} trips for REAL performance data`);
     
     // Validate for quality insights but DON'T filter the data
@@ -109,9 +116,9 @@ export class AIInsightsCoordinator {
     let totalRealTrips = 0;
 
     reportingTrips.forEach(trip => {
-      const profit = parseFloat(trip.total_profit || trip.trip_data?.profit || 0);
-      const earnings = parseFloat(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0);
-      const tripCount = parseInt(trip.trip_data?.total_trips || 1);
+      const profit = parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0));
+      const earnings = parseFloat(String(trip.trip_data?.driver_earnings || trip.trip_data?.fare_amount || 0));
+      const tripCount = parseInt(String(trip.trip_data?.total_trips || 1));
       
       totalRealProfit += profit;
       totalRealEarnings += earnings;
@@ -146,7 +153,7 @@ export class KeyInsightsAgent {
     if (trips.length === 0) return ['No trip data available'];
     
     const totalProfit = trips.reduce((sum, trip) => 
-      sum + parseFloat(trip.total_profit || trip.trip_data?.profit || 0), 0);
+      sum + parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0)), 0);
     const avgProfit = totalProfit / trips.length;
     
     return [
@@ -158,11 +165,12 @@ export class KeyInsightsAgent {
 }
 
 export class ProjectionsAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async generateProjections(trips: TripData[], timeframe: string) {
     if (trips.length === 0) return { daily_projection: { avg_profit: 0 } };
     
     const totalProfit = trips.reduce((sum, trip) => 
-      sum + parseFloat(trip.total_profit || trip.trip_data?.profit || 0), 0);
+      sum + parseFloat(String(trip.total_profit || trip.trip_data?.profit || 0)), 0);
     const avgDaily = totalProfit / Math.max(trips.length, 1) * 7; // Rough weekly estimate
     
     return {
@@ -173,6 +181,7 @@ export class ProjectionsAgent {
 }
 
 export class TrendsAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async analyzeTrends(trips: TripData[], timeframe: string) {
     return {
       trend: trips.length > 0 ? 'Analysis based on real data' : 'No data available',
@@ -182,6 +191,7 @@ export class TrendsAgent {
 }
 
 export class VehicleEfficiencyAgent {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static async analyzeHondaOdyssey(trips: TripData[]) {
     return {
       actual_mpg: 19.0,

@@ -1,6 +1,10 @@
 // Test image upload to verify the screenshot upload functionality is working
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create a simple test image (1x1 pixel PNG) in base64
 const testImageBase64 =

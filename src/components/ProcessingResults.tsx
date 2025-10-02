@@ -76,12 +76,6 @@ export default function ProcessingResults({ imagePath, driverId, onClose }: Proc
   });
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (imagePath && driverId) {
-      processImage();
-    }
-  }, [imagePath, driverId]);
-
   const processImage = useCallback(async () => {
     console.log('ProcessingResults: Starting processing...', { imagePath, driverId });
     setIsProcessing(true);

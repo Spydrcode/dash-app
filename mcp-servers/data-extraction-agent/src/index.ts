@@ -3,10 +3,10 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
+    CallToolRequestSchema,
+    ListResourcesRequestSchema,
+    ListToolsRequestSchema,
+    ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import axios from "axios";
 import sharp from "sharp";
@@ -210,7 +210,7 @@ class DataExtractionMCPServer {
           });
 
         case "validate_trip_data":
-          return await this.validateTripData(args as { trip_data: any });
+          return await this.validateTripData(args as { trip_data: Record<string, unknown> });
 
         default:
           throw new Error(`Unknown tool: ${name}`);
@@ -221,7 +221,7 @@ class DataExtractionMCPServer {
   private async extractTripData(args: {
     image_path: string;
     image_base64?: string;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       logger.info(`Extracting trip data from image: ${args.image_path}`);
 
@@ -243,7 +243,7 @@ class DataExtractionMCPServer {
             text: JSON.stringify(
               {
                 success: true,
-                trip_data: tripData.content[0].text,
+                trip_data: (tripData as { content?: Array<{ text?: unknown }> }).content?.[0]?.text || tripData,
                 ocr_confidence: ocrResult.confidence,
                 processing_time: new Date().toISOString(),
               },
@@ -314,7 +314,7 @@ class DataExtractionMCPServer {
   private async processTextExtraction(args: {
     raw_text: string;
     platform?: string;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       const prompt = this.buildExtractionPrompt(args.raw_text, args.platform);
 
@@ -402,7 +402,7 @@ JSON:`;
     }
   }
 
-  private async validateTripData(args: { trip_data: any }): Promise<any> {
+  private async validateTripData(args: { trip_data: Record<string, unknown> }): Promise<Record<string, unknown>> {
     try {
       const validatedData = this.cleanAndValidateTripData(args.trip_data);
 
@@ -442,10 +442,10 @@ JSON:`;
     }
   }
 
-  private cleanAndValidateTripData(data: any): TripData {
+  private cleanAndValidateTripData(data: Record<string, unknown>): TripData {
     // Implement validation logic
     const cleaned: TripData = {
-      id: data.id || uuidv4(),
+      id: (typeof data.id === 'string' ? data.id : uuidv4()),
     };
 
     // Validate and clean each field

@@ -38,7 +38,7 @@ class SimpleLinearRegression {
 class PolynomialRegression {
   private coefficients: number[] = [];
 
-  constructor(x: number[][], y: number[], degree: number = 2) {
+  constructor(x: number[][], y: number[]) {
     // Simplified polynomial regression - just use linear for now
     const flatX = x.map((row) => row[0]); // Use first feature only
     const linear = new SimpleLinearRegression(flatX, y);
@@ -92,7 +92,7 @@ interface TripData {
 
 interface PredictionModel {
   type: "linear" | "polynomial";
-  model: any;
+  model: Record<string, unknown>;
   accuracy: number;
   trained_at: string;
 }
@@ -101,7 +101,7 @@ interface MarketAnalysis {
   peak_hours: number[];
   best_platforms: string[];
   optimal_areas: string[];
-  seasonal_trends: any[];
+  seasonal_trends: Record<string, unknown>[];
 }
 
 class AnalyticsMCPServer {
@@ -156,8 +156,8 @@ class AnalyticsMCPServer {
 
     this.server.setRequestHandler(
       ReadResourceRequestSchema,
-      async (request: any) => {
-        const uri = request.params.uri;
+      async (request: Record<string, unknown>) => {
+        const uri = (request as { params: { uri: string } }).params.uri;
 
         switch (uri) {
           case "analytics://profit-predictions":
@@ -327,24 +327,45 @@ class AnalyticsMCPServer {
 
     this.server.setRequestHandler(
       CallToolRequestSchema,
-      async (request: any) => {
-        const { name, arguments: args } = request.params;
+      async (request: Record<string, unknown>) => {
+        const { name, arguments: args } = (request as {
+          params: { name: string; arguments: Record<string, unknown> };
+        }).params;
 
         switch (name) {
           case "train_profit_model":
-            return await this.trainProfitModel(args);
+            return await this.trainProfitModel(args as {
+              trip_data: TripData[];
+              model_type?: string;
+            });
 
           case "predict_trip_profit":
-            return await this.predictTripProfit(args);
+            return await this.predictTripProfit(args as {
+              distance: number;
+              duration: number;
+              platform?: string;
+              hour_of_day?: number;
+              day_of_week?: number;
+            });
 
           case "analyze_peak_hours":
-            return await this.analyzePeakHours(args);
+            return await this.analyzePeakHours(args as {
+              trip_data: TripData[];
+              lookback_days?: number;
+            });
 
           case "optimize_schedule":
-            return await this.optimizeSchedule(args);
+            return await this.optimizeSchedule(args as {
+              available_hours: number[];
+              target_income?: number;
+              max_hours?: number;
+            });
 
           case "generate_market_insights":
-            return await this.generateMarketInsights(args);
+            return await this.generateMarketInsights(args as {
+              trip_data: TripData[];
+              time_period?: string;
+            });
 
           default:
             throw new Error(`Unknown tool: ${name}`);
@@ -356,7 +377,7 @@ class AnalyticsMCPServer {
   private async trainProfitModel(args: {
     trip_data: TripData[];
     model_type?: string;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       const { trip_data, model_type = "linear" } = args;
 
@@ -389,18 +410,22 @@ class AnalyticsMCPServer {
       }
 
       // Train model
-      let model: any;
+      let model: PolynomialRegression | SimpleLinearRegression;
       let accuracy: number;
 
       if (model_type === "polynomial") {
-        model = new PolynomialRegression(features, targets, 2);
-        const predictions = features.map((f) => model.predict(f));
+        model = new PolynomialRegression(features, targets);
+        const predictions = features.map((f) =>
+          (model as PolynomialRegression).predict(f)
+        );
         accuracy = this.calculateR2(targets, predictions);
       } else {
         // For linear regression, we'll use distance as the primary feature
         const distanceFeatures = features.map((f) => f[0]);
         model = new SimpleLinearRegression(distanceFeatures, targets);
-        const predictions = distanceFeatures.map((d) => model.predict(d));
+        const predictions = distanceFeatures.map((d) =>
+          (model as SimpleLinearRegression).predict(d)
+        );
         accuracy = this.calculateR2(targets, predictions);
       }
 
@@ -408,7 +433,7 @@ class AnalyticsMCPServer {
       const modelKey = `profit_${model_type}`;
       this.models.set(modelKey, {
         type: model_type as "linear" | "polynomial",
-        model,
+        model: (model as unknown) as Record<string, unknown>,
         accuracy,
         trained_at: new Date().toISOString(),
       });
@@ -458,7 +483,7 @@ class AnalyticsMCPServer {
     platform?: string;
     hour_of_day?: number;
     day_of_week?: number;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       const model =
         this.models.get("profit_linear") ||
@@ -473,14 +498,18 @@ class AnalyticsMCPServer {
       let prediction: number;
 
       if (model.type === "linear") {
-        prediction = model.model.predict(args.distance);
+        prediction = ((model.model as unknown) as SimpleLinearRegression).predict(
+          args.distance
+        );
       } else {
-        prediction = model.model.predict([
-          args.distance,
-          args.duration,
-          args.hour_of_day || 12,
-          args.day_of_week || 1,
-        ]);
+        prediction = ((model.model as unknown) as PolynomialRegression).predict(
+          [
+            args.distance,
+            args.duration,
+            args.hour_of_day || 12,
+            args.day_of_week || 1,
+          ]
+        );
       }
 
       // Add some context-based adjustments
@@ -554,7 +583,7 @@ class AnalyticsMCPServer {
   private async analyzePeakHours(args: {
     trip_data: TripData[];
     lookback_days?: number;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       const { trip_data } = args;
 
@@ -637,7 +666,7 @@ class AnalyticsMCPServer {
     available_hours: number[];
     target_income?: number;
     max_hours?: number;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       // This is a simplified optimization - in practice you'd use more sophisticated algorithms
       const { available_hours, target_income, max_hours = 10 } = args;
@@ -716,7 +745,7 @@ class AnalyticsMCPServer {
   private async generateMarketInsights(args: {
     trip_data: TripData[];
     time_period?: string;
-  }): Promise<any> {
+  }): Promise<Record<string, unknown>> {
     try {
       // Use LLM to generate insights
       const { trip_data, time_period = "month" } = args;
@@ -813,7 +842,9 @@ Format your response as JSON with these exact fields:
     return Math.max(0, 1 - residualSumSquares / totalSumSquares);
   }
 
-  private generateScheduleRecommendations(schedule: any[]): string[] {
+  private generateScheduleRecommendations(
+    schedule: Record<string, unknown>[]
+  ): string[] {
     const recommendations = [];
 
     if (schedule.filter((s) => s.is_peak).length < schedule.length / 2) {
@@ -853,13 +884,13 @@ Format your response as JSON with these exact fields:
     };
   }
 
-  private parseInsightsResponse(response: string): any {
+  private parseInsightsResponse(response: string): Record<string, unknown> {
     try {
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
       }
-    } catch (e) {
+    } catch {
       // Fallback to structured response
     }
 
@@ -871,7 +902,7 @@ Format your response as JSON with these exact fields:
     };
   }
 
-  private async generateProfitPredictions(): Promise<any> {
+  private async generateProfitPredictions(): Promise<Record<string, unknown>> {
     return {
       next_7_days: [],
       next_30_days: [],
@@ -888,7 +919,9 @@ Format your response as JSON with these exact fields:
     };
   }
 
-  private async calculatePerformanceMetrics(): Promise<any> {
+  private async calculatePerformanceMetrics(): Promise<
+    Record<string, unknown>
+  > {
     return {
       daily_average: 0,
       weekly_trend: 0,

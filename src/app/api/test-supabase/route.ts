@@ -1,8 +1,17 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const diagnostics: any = {
+interface DiagnosticsResult {
+  timestamp: string;
+  environment_check: Record<string, unknown>;
+  connection_test: Record<string, unknown>;
+  database_structure: Record<string, unknown>;
+  sample_operations: Record<string, unknown>;
+  recommendations: string[];
+}
+
+export async function GET() {
+  const diagnostics: DiagnosticsResult = {
     timestamp: new Date().toISOString(),
     environment_check: {},
     connection_test: {},
@@ -35,7 +44,7 @@ export async function GET(request: NextRequest) {
     console.log('🔗 Testing Supabase connection...');
     
     try {
-      const { data, error } = await supabaseAdmin.from('trips').select('count').limit(1);
+      const { error } = await supabaseAdmin.from('trips').select('count').limit(1);
       
       if (error) {
         diagnostics.connection_test = {
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
     console.log('🗄️ Checking database structure...');
     
     const requiredTables = ['trips', 'trip_screenshots', 'reanalysis_sessions'];
-    const tableChecks: Record<string, any> = {};
+    const tableChecks: Record<string, unknown> = {};
 
     for (const tableName of requiredTables) {
       try {
@@ -191,18 +200,18 @@ export async function GET(request: NextRequest) {
     }
 
     const missingTables = Object.entries(tableChecks)
-      .filter(([, check]: [string, any]) => !(check as any).exists)
+      .filter(([, check]) => !(check as Record<string, unknown>).exists)
       .map(([table]) => table);
 
     if (missingTables.length > 0) {
       diagnostics.recommendations.push(`Missing database tables: ${missingTables.join(', ')}. Run database setup SQL.`);
     }
 
-    if (diagnostics.sample_operations.insert?.success === false) {
+    if ((diagnostics.sample_operations.insert as Record<string, unknown>)?.success === false) {
       diagnostics.recommendations.push('Cannot insert data - check table permissions and structure');
     }
 
-    if (diagnostics.database_structure.data_check?.total_trips === 0) {
+    if ((diagnostics.database_structure.data_check as Record<string, unknown>)?.total_trips === 0) {
       diagnostics.recommendations.push('No trip data found - upload some screenshots to populate database');
     }
 
@@ -211,8 +220,8 @@ export async function GET(request: NextRequest) {
     }
 
     const allGood = diagnostics.connection_test.status === 'SUCCESS' && 
-                   diagnostics.sample_operations.insert?.success === true &&
-                   Object.values(tableChecks).every((check: any) => check.exists);
+                   (diagnostics.sample_operations.insert as Record<string, unknown>)?.success === true &&
+                   Object.values(tableChecks).every((check) => (check as Record<string, unknown>).exists);
 
     return NextResponse.json({
       success: allGood,

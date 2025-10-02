@@ -1,13 +1,14 @@
 // User Feedback System for AI Training
 // Allows manual corrections to train the AI agents on YOUR specific data patterns
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { AITrainingSystem } from '../lib/ai-training-system';
 
 interface ScreenshotReview {
   id: string;
   image_url: string;
-  extracted_data: any;
+  extracted_data: Record<string, unknown>;
   ocr_text: string;
   screenshot_type: string;
   confidence: number;
@@ -17,8 +18,8 @@ interface ScreenshotReview {
 interface CorrectionData {
   screenshot_id: string;
   field: string;
-  extracted_value: any;
-  corrected_value: any;
+  extracted_value: unknown;
+  corrected_value: unknown;
   user_notes?: string;
 }
 
@@ -39,8 +40,8 @@ export default function AITrainingDashboard() {
       const data = await response.json();
       
       // Filter for screenshots with low confidence or missing data
-      const needsReview = data.screenshots.filter((s: any) => 
-        s.extraction_confidence < 0.8 || 
+      const needsReview = data.screenshots.filter((s: ScreenshotReview) => 
+        s.confidence < 0.8 || 
         !s.extracted_data.driver_earnings ||
         !s.extracted_data.distance
       );
@@ -148,9 +149,11 @@ export default function AITrainingDashboard() {
               onClick={() => setSelectedScreenshot(screenshot)}
             >
               <div className="flex items-start space-x-4">
-                <img 
+                <Image 
                   src={screenshot.image_url} 
                   alt="Screenshot"
+                  width={80}
+                  height={80}
                   className="w-20 h-20 object-cover rounded"
                 />
                 <div className="flex-1">
@@ -168,9 +171,9 @@ export default function AITrainingDashboard() {
                   </div>
                   
                   <div className="text-sm text-gray-600 space-y-1">
-                    <div>💰 Earnings: ${screenshot.extracted_data.driver_earnings || '???'}</div>
-                    <div>📏 Distance: {screenshot.extracted_data.distance || '???'} mi</div>
-                    <div>🚗 Trips: {screenshot.extracted_data.total_trips || '???'}</div>
+                    <div>💰 Earnings: ${String((screenshot.extracted_data as Record<string, unknown>).driver_earnings || '???')}</div>
+                    <div>📏 Distance: {String((screenshot.extracted_data as Record<string, unknown>).distance || '???')} mi</div>
+                    <div>🚗 Trips: {String((screenshot.extracted_data as Record<string, unknown>).total_trips || '???')}</div>
                   </div>
                   
                   {(!screenshot.extracted_data.driver_earnings || !screenshot.extracted_data.distance) && (
@@ -251,10 +254,12 @@ function CorrectionForm({
     <div className="space-y-6">
       {/* Screenshot Preview */}
       <div className="border rounded-lg p-4">
-        <img 
+        <Image 
           src={screenshot.image_url} 
           alt="Screenshot for review"
           className="w-full max-h-64 object-contain rounded"
+          width={400}
+          height={256}
         />
         <div className="mt-3 text-sm text-gray-600">
           <div><strong>Type:</strong> {screenshot.screenshot_type}</div>
@@ -280,13 +285,13 @@ function CorrectionForm({
             <input
               type="number"
               step="0.01"
-              value={formData.driver_earnings}
+              value={String(formData.driver_earnings || '')}
               onChange={(e) => setFormData({...formData, driver_earnings: e.target.value})}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="25.50"
             />
             <div className="text-xs text-gray-500 mt-1">
-              Original: ${screenshot.extracted_data.driver_earnings || '???'}
+              Original: ${String((screenshot.extracted_data as Record<string, unknown>).driver_earnings || '???')}
             </div>
           </div>
 
@@ -297,13 +302,13 @@ function CorrectionForm({
             <input
               type="number"
               step="0.1"
-              value={formData.distance}
+              value={String(formData.distance || '')}
               onChange={(e) => setFormData({...formData, distance: e.target.value})}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="12.5"
             />
             <div className="text-xs text-gray-500 mt-1">
-              Original: {screenshot.extracted_data.distance || '???'} mi
+              Original: {String((screenshot.extracted_data as Record<string, unknown>).distance || '???')} mi
             </div>
           </div>
 
@@ -313,13 +318,13 @@ function CorrectionForm({
             </label>
             <input
               type="number"
-              value={formData.total_trips}
+              value={String(formData.total_trips || '')}
               onChange={(e) => setFormData({...formData, total_trips: e.target.value})}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="3"
             />
             <div className="text-xs text-gray-500 mt-1">
-              Original: {screenshot.extracted_data.total_trips || '???'}
+              Original: {String((screenshot.extracted_data as Record<string, unknown>).total_trips || '???')}
             </div>
           </div>
 
@@ -330,13 +335,13 @@ function CorrectionForm({
             <input
               type="number"
               step="0.01"
-              value={formData.tip_amount}
+              value={String(formData.tip_amount || '')}
               onChange={(e) => setFormData({...formData, tip_amount: e.target.value})}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="5.00"
             />
             <div className="text-xs text-gray-500 mt-1">
-              Original: ${screenshot.extracted_data.tip_amount || '???'}
+              Original: ${String((screenshot.extracted_data as Record<string, unknown>).tip_amount || '???')}
             </div>
           </div>
         </div>

@@ -1,12 +1,12 @@
 // Complete Data Pipeline Diagnosis - Check every stage of screenshot processing
 import { createClient } from '@supabase/supabase-js';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     console.log('🔍 COMPLETE DATA PIPELINE DIAGNOSIS...');
     
@@ -95,13 +95,13 @@ export async function GET(request: NextRequest) {
       
       if (ollamaResponse.ok) {
         const result = await ollamaResponse.json();
-        availableModels = result.models?.map((m: any) => m.name) || [];
+        availableModels = result.models?.map((m: { name: string }) => m.name) || [];
         ollamaStatus = 'CONNECTED';
         console.log(`🤖 OLLAMA STATUS: Connected with ${availableModels.length} models`);
       } else {
         ollamaStatus = 'ERROR';
       }
-    } catch (error) {
+    } catch {
       ollamaStatus = 'DISCONNECTED';
       console.log('❌ OLLAMA STATUS: Not reachable');
     }
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
       has_trip_data: !!t.trip_data,
       trip_data_fields: t.trip_data ? Object.keys(t.trip_data) : [],
       screenshots_count: t.trip_screenshots?.length || 0,
-      processed_screenshots: t.trip_screenshots?.filter((s: any) => s.is_processed).length || 0
+      processed_screenshots: t.trip_screenshots?.filter((s: { is_processed?: boolean }) => s.is_processed).length || 0
     })) || [];
 
     // STAGE 6: Identify specific problems
@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
       
       stage_1_uploads: {
         total_screenshots: screenshots?.length || 0,
-        by_type: screenshots?.reduce((acc: any, s) => {
+        by_type: screenshots?.reduce((acc: Record<string, number>, s) => {
           acc[s.screenshot_type] = (acc[s.screenshot_type] || 0) + 1;
           return acc;
         }, {}) || {}

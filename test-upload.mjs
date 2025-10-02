@@ -1,5 +1,5 @@
 // Test script to check Supabase storage connectivity
-const { createClient } = require("@supabase/supabase-js");
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = "https://niyvlumbtuqnzjguxlcz.supabase.co";
 const supabaseServiceKey =
