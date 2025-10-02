@@ -4,19 +4,14 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-// Environment validation
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Missing Supabase configuration');
-}
-
-const supabaseAdmin = createClient(supabaseUrl!, supabaseKey!);
-
 // Multi-Stage Pipeline to fix data accuracy issues
 export async function POST() {
   try {
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
     console.log('🔧 FIXING DATA EXTRACTION PIPELINE...');
     
     // Environment check
@@ -126,7 +121,7 @@ export async function POST() {
     }
 
     // Step 5: Analyze and compile all extracted data
-    const compiledData = await compileAllData();
+    const compiledData = await compileAllData(supabaseAdmin);
 
     // Step 6: Generate corrected insights using DeepSeek-R1
     const correctedInsights = await generateCorrectedInsights(compiledData);
@@ -203,7 +198,7 @@ async function extractWithGPTVision(screenshot: Record<string, unknown>) {
 }
 
 // Compile all extracted data
-async function compileAllData() {
+async function compileAllData(supabaseAdmin: any) {
     try {
       const { data: allScreenshots } = await supabaseAdmin
         .from('trip_screenshots')
@@ -216,7 +211,7 @@ async function compileAllData() {
       let totalTrips = 0;
       const dailyData: Record<string, Record<string, number>> = {};
 
-      allScreenshots?.forEach(screenshot => {
+      allScreenshots?.forEach((screenshot: any) => {
         const data = screenshot.extracted_data;
         const date = screenshot.created_at.split('T')[0];
         
@@ -282,13 +277,10 @@ async function generateCorrectedInsights(compiledData: Record<string, unknown>) 
 // Check pipeline status
 export async function GET() {
   try {
-    // Environment check
-    if (!supabaseUrl || !supabaseKey) {
-      return NextResponse.json({ 
-        error: 'Missing Supabase configuration',
-        details: 'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
-      }, { status: 500 });
-    }
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     // Check screenshot processing status
     const { data: screenshots, error } = await supabaseAdmin

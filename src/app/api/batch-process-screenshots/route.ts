@@ -4,12 +4,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-
 export async function POST() {
   try {
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
     console.log('🚀 Starting batch LLaVA processing of all screenshots...');
 
     // Get all unprocessed or poorly processed screenshots
@@ -142,6 +148,16 @@ export async function POST() {
 // Get processing status
 export async function GET() {
   try {
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
     const { data: screenshots, error } = await supabaseAdmin
       .from('trip_screenshots')
       .select('id, is_processed, ocr_data, screenshot_type, created_at')

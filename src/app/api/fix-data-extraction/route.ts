@@ -2,12 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-
 // Helper functions for data extraction
-async function extractWithLLaVA(screenshot: Record<string, unknown>) {
+async function extractWithLLaVA(screenshot: Record<string, unknown>, supabaseAdmin: any) {
   try {
     console.log(`👁️ Extracting data from ${screenshot.screenshot_type} screenshot ${screenshot.id}`);
     
@@ -47,7 +43,7 @@ async function extractWithLLaVA(screenshot: Record<string, unknown>) {
   }
 }
 
-async function compileAllData() {
+async function compileAllData(supabaseAdmin: any) {
   try {
     console.log('📊 Compiling all extracted data...');
     
@@ -133,6 +129,15 @@ async function generateCorrectedInsights(compiledData: Record<string, unknown>) 
 // Main API endpoints
 export async function POST() {
   try {
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
     console.log('🔧 STARTING DATA PIPELINE FIX...');
     
     // Step 1: Get all screenshots and analyze current state
@@ -164,7 +169,7 @@ export async function POST() {
 
     for (const screenshot of needsProcessing.slice(0, 15)) { // Process 15 screenshots
       try {
-        const extractedData = await extractWithLLaVA(screenshot);
+        const extractedData = await extractWithLLaVA(screenshot, supabaseAdmin);
         
         if (extractedData && extractedData.driver_earnings) {
           // Update screenshot with extracted data
@@ -196,7 +201,7 @@ export async function POST() {
     }
 
     // Step 4: Compile all data after extraction
-    const compiledData = await compileAllData();
+    const compiledData = await compileAllData(supabaseAdmin);
     
     // Step 5: Generate corrected insights
     const correctedInsights = await generateCorrectedInsights(compiledData);
@@ -236,6 +241,15 @@ export async function POST() {
 
 export async function GET() {
   try {
+    // Initialize Supabase client inside the function to avoid build-time errors
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ error: 'Supabase configuration missing' }, { status: 500 });
+    }
+    
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
     // Check current data extraction status
     const { data: screenshots } = await supabaseAdmin
       .from('trip_screenshots')
