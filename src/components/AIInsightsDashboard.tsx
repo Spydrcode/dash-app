@@ -124,16 +124,70 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
       }
 
       const data = await response.json();
-      console.log(`🤖 AI Insights loaded for ${selectedTimeframe}:`, {
-        trips: data.summary?.total_trips || 0,
+      console.log(`🤖 AI Insights Response for ${selectedTimeframe}:`, {
+        success: data.success,
+        fallback_mode: data.fallback_mode,
+        trips: data.summary?.total_trips || data.trip_count || 0,
         earnings: data.summary?.total_earnings || 0,
-        aiGenerated: data.ai_generated || false
+        aiGenerated: data.ai_generated || false,
+        hasGptInsights: !!data.gpt_insights,
+        hasSummary: !!data.summary,
+        fullResponse: data
       });
       
       setInsights(data);
     } catch (err) {
       console.error('Error fetching insights:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch insights');
+      
+      // Set fallback data to prevent blank screen
+      setInsights({
+        summary: {
+          timeframe: selectedTimeframe,
+          total_trips: 0,
+          total_earnings: 0,
+          total_distance: 0,
+          total_profit: 0,
+          performance_score: 0,
+          profit_margin: 0
+        },
+        honda_odyssey: {
+          actual_mpg: 19,
+          rated_mpg: 19,
+          efficiency_rating: 'No data available',
+          total_fuel_cost: 0,
+          fuel_savings: 'N/A'
+        },
+        performance_breakdown: {
+          earnings_per_mile: 0,
+          profit_per_mile: 0,
+          average_trip_profit: 0,
+          fuel_cost_ratio: 0
+        },
+        time_analysis: {
+          best_day: { day: 'No data', profit: 0, trips: 0 },
+          best_hour: { hour: 'No data', profit: 0, trips: 0 }
+        },
+        projections: {
+          daily_projection: { avg_profit: 0, avg_trips: 0 },
+          weekly_projection: { avg_profit: 0, avg_trips: 0 },
+          monthly_projection: { avg_profit: 0, avg_trips: 0 }
+        },
+        tip_analysis: {
+          accuracy_rate: 0,
+          total_tips: 0,
+          average_tip: 0,
+          best_tip_day: 'No data'
+        },
+        trends: {
+          direction: 'No data',
+          percentage_change: 0,
+          trend_analysis: 'Upload trip data to see trends'
+        },
+        key_insights: ['Upload trip screenshots to start getting AI insights'],
+        ai_recommendations: ['Take screenshots of your trip summaries', 'Upload both initial offers and final totals'],
+        ai_generated: false
+      });
     } finally {
       setLoading(false);
     }

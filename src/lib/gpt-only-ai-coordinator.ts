@@ -138,15 +138,18 @@ export class GPTOnlyAICoordinator {
   // Get existing insights without regenerating (for dashboard display)
   async getCurrentInsights(): Promise<Record<string, unknown>> {
     try {
+      console.log('🔍 Getting current insights from existing data...');
+      
+      // First try to get from cumulative insights table
       const cumulativeData = await this.getCumulativeInsights();
-      const tokenSummary = await this.gptService.getTokenUsageSummary();
-
-      if (!cumulativeData) {
-        return {
-          summary: this.getEmptySummary(),
-          message: 'No data yet - upload screenshots to start getting AI insights'
-        };
+      
+      // If no cumulative data, calculate from existing screenshots
+      if (!cumulativeData || (cumulativeData.total_trips as number) === 0) {
+        console.log('📊 No cumulative data found, calculating from existing screenshots...');
+        return await this.calculateInsightsFromExistingData();
       }
+
+      const tokenSummary = await this.gptService.getTokenUsageSummary();
 
       return {
         summary: {
@@ -175,13 +178,139 @@ export class GPTOnlyAICoordinator {
         last_updated: cumulativeData.last_updated,
         screenshots_processed: cumulativeData.screenshots_count
       };
-    } catch {
-      console.error('Failed to get current insights');
+    } catch (error) {
+      console.error('Failed to get current insights:', error);
+      // Fallback to calculating from existing data
+      return await this.calculateInsightsFromExistingData();
+    }
+  }
+
+  // Calculate insights directly from existing screenshot data
+  private async calculateInsightsFromExistingData(): Promise<Record<string, unknown>> {
+    try {
+      console.log('📸 Calculating insights from existing screenshots...');
+      
+      if (!supabaseAdmin) {
+        throw new Error('Supabase admin client not initialized');
+      }
+
+      // Get all processed screenshots with extracted data
+      const { data: screenshots } = await supabaseAdmin
+        .from('trip_screenshots')
+        .select('*')
+        .eq('is_processed', true)
+        .not('extracted_data', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (!screenshots || screenshots.length === 0) {
+        console.log('❌ No processed screenshots found');
+        return {
+          summary: this.getEmptySummary(),
+          message: 'No processed screenshots found - upload trip screenshots to get insights'
+        };
+      }
+
+      console.log(`✅ Found ${screenshots.length} processed screenshots`);
+
+      // Calculate totals from screenshot data
+      let totalTrips = 0;
+      let totalEarnings = 0;
+      let totalDistance = 0;
+      let totalProfit = 0;
+      const uniqueDates = new Set();
+
+      screenshots.forEach(screenshot => {
+        const data = screenshot.extracted_data as Record<string, unknown>;
+        if (data) {
+          // Add trip count (default to 1 if not specified)
+          totalTrips += (data.total_trips as number) || (data.trips as number) || 1;
+          
+          // Add earnings
+          const earnings = (data.driver_earnings as number) || (data.earnings as number) || 0;
+          totalEarnings += earnings;
+          
+          // Add distance
+          const distance = (data.distance as number) || (data.total_distance as number) || 0;
+          totalDistance += distance;
+          
+          // Calculate profit (70% of earnings minus fuel cost)
+          const profit = (data.profit as number) || (earnings * 0.7 - distance * 0.18);
+          totalProfit += profit;
+          
+          // Track unique dates
+          const date = screenshot.created_at?.split('T')[0];
+          if (date) uniqueDates.add(date);
+        }
+      });
+
+      const activeDays = uniqueDates.size;
+      const performanceScore = this.calculateSimplePerformanceScore(totalTrips, totalEarnings, totalProfit);
+
+      const calculatedTotals = {
+        total_trips: totalTrips,
+        total_earnings: totalEarnings,
+        total_distance: totalDistance,
+        total_profit: totalProfit,
+        active_days: activeDays,
+        screenshots_count: screenshots.length,
+        performance_score: performanceScore
+      };
+
+      console.log('📊 Calculated totals:', calculatedTotals);
+
+      // Save to cumulative insights for future use
+      await this.saveCumulativeInsights(calculatedTotals, {
+        performance_score: performanceScore,
+        key_insights: [`Analyzed ${screenshots.length} screenshots`, `${totalTrips} trips tracked`, `$${totalProfit.toFixed(2)} total profit`],
+        recommendations: this.generateSmartRecommendations(calculatedTotals),
+        calculated_from_screenshots: true
+      });
+
+      return {
+        summary: {
+          timeframe: 'all',
+          total_trips: totalTrips,
+          total_earnings: totalEarnings,
+          total_profit: totalProfit,
+          total_distance: totalDistance,
+          performance_score: performanceScore,
+          performance_category: this.getPerformanceCategory(performanceScore),
+          profit_margin: totalEarnings > 0 ? (totalProfit / totalEarnings) * 100 : 0,
+          active_days: activeDays,
+          avg_daily_profit: activeDays > 0 ? totalProfit / activeDays : 0,
+          avg_profit_per_trip: totalTrips > 0 ? totalProfit / totalTrips : 0
+        },
+        ai_insights: {
+          key_insights: `Calculated from ${screenshots.length} processed screenshots`,
+          recommendations: this.generateSmartRecommendations(calculatedTotals)
+        },
+        performance_breakdown: this.calculatePerformanceBreakdown(calculatedTotals),
+        time_analysis: this.generateRealisticTimeAnalysis(calculatedTotals),
+        screenshots_processed: screenshots.length,
+        last_updated: new Date().toISOString(),
+        calculated_from_existing_data: true
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to calculate insights from existing data:', error);
       return {
         summary: this.getEmptySummary(),
-        error: 'Failed to retrieve insights'
+        error: 'Failed to calculate insights from existing data'
       };
     }
+  }
+
+  private calculateSimplePerformanceScore(trips: number, earnings: number, profit: number): number {
+    if (trips === 0) return 0;
+    
+    const avgProfitPerTrip = profit / trips;
+    const profitMargin = earnings > 0 ? (profit / earnings) * 100 : 0;
+    
+    // Simple scoring: 50% based on profit per trip, 50% on profit margin
+    const profitScore = Math.min(avgProfitPerTrip * 5, 50); // Max 50 points
+    const marginScore = Math.min(profitMargin, 50); // Max 50 points
+    
+    return Math.round(profitScore + marginScore);
   }
 
   // Reprocess ALL screenshots with GPT-4o (for migration/refresh)
@@ -490,7 +619,8 @@ export class GPTOnlyAICoordinator {
       profit_margin: 0,
       active_days: 0,
       avg_daily_profit: 0,
-      avg_profit_per_trip: 0
+      avg_profit_per_trip: 0,
+      message: 'Upload trip screenshots to start getting AI insights'
     };
   }
 }
