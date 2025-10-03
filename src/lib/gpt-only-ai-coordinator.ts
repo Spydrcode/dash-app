@@ -16,7 +16,22 @@ export class GPTOnlyAICoordinator {
   private gptService: GPTServiceWithTracking;
 
   constructor() {
-    this.gptService = new GPTServiceWithTracking();
+    try {
+      this.gptService = new GPTServiceWithTracking();
+    } catch (error) {
+      console.error('Failed to initialize GPT service:', error);
+      // Create a mock service for production fallback
+      this.gptService = {
+        getTokenUsageSummary: () => Promise.resolve({
+          total_tokens: 0,
+          total_cost: 0,
+          avg_tokens_per_request: 0,
+          requests_by_model: {},
+          daily_breakdown: {},
+          current_session: { tokens: 0, cost: 0 }
+        })
+      } as any;
+    }
   }
 
   // Main method: Process new screenshots and update cumulative insights
@@ -140,16 +155,41 @@ export class GPTOnlyAICoordinator {
     try {
       console.log('🔍 Getting current insights from existing data...');
       
-      // First try to get from cumulative insights table
-      const cumulativeData = await this.getCumulativeInsights();
+      // Add timeout for production
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), 8000)
+      );
+      
+      // First try to get from cumulative insights table with timeout
+      const cumulativeData = await Promise.race([
+        this.getCumulativeInsights(),
+        timeoutPromise
+      ]) as Record<string, unknown> | null;
       
       // If no cumulative data, calculate from existing screenshots
       if (!cumulativeData || (cumulativeData.total_trips as number) === 0) {
         console.log('📊 No cumulative data found, calculating from existing screenshots...');
-        return await this.calculateInsightsFromExistingData();
+        return await Promise.race([
+          this.calculateInsightsFromExistingData(),
+          timeoutPromise
+        ]) as Record<string, unknown>;
       }
 
-      const tokenSummary = await this.gptService.getTokenUsageSummary();
+      let tokenSummary;
+      try {
+        tokenSummary = await Promise.race([
+          this.gptService.getTokenUsageSummary(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Token timeout')), 2000))
+        ]);
+      } catch {
+        tokenSummary = {
+          total_tokens: 0,
+          total_cost: 0,
+          avg_tokens_per_request: 0,
+          requests_by_model: {},
+          daily_breakdown: {}
+        };
+      }
 
       return {
         summary: {
@@ -180,8 +220,20 @@ export class GPTOnlyAICoordinator {
       };
     } catch (error) {
       console.error('Failed to get current insights:', error);
-      // Fallback to calculating from existing data
-      return await this.calculateInsightsFromExistingData();
+      // Production fallback - return basic insights without database calls
+      try {
+        return await Promise.race([
+          this.calculateInsightsFromExistingData(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Final timeout')), 5000))
+        ]) as Record<string, unknown>;
+      } catch {
+        console.log('All methods failed, returning empty insights');
+        return {
+          summary: this.getEmptySummary(),
+          error: 'Service temporarily unavailable in production',
+          production_mode: true
+        };
+      }
     }
   }
 
@@ -191,16 +243,29 @@ export class GPTOnlyAICoordinator {
       console.log('📸 Calculating insights from existing screenshots...');
       
       if (!supabaseAdmin) {
-        throw new Error('Supabase admin client not initialized');
+        console.error('Supabase admin client not initialized');
+        return {
+          summary: this.getEmptySummary(),
+          error: 'Database connection not available'
+        };
       }
 
-      // Get all processed screenshots with extracted data
-      const { data: screenshots } = await supabaseAdmin
+      // Get all processed screenshots with extracted data (with timeout)
+      const { data: screenshots, error: dbError } = await supabaseAdmin
         .from('trip_screenshots')
         .select('*')
         .eq('is_processed', true)
         .not('extracted_data', 'is', null)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Limit for performance
+        
+      if (dbError) {
+        console.error('Database query failed:', dbError);
+        return {
+          summary: this.getEmptySummary(),
+          error: `Database error: ${dbError.message}`
+        };
+      }
 
       if (!screenshots || screenshots.length === 0) {
         console.log('❌ No processed screenshots found');
