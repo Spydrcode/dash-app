@@ -1,5 +1,17 @@
 // Real-time Insight Update System
 // Automatically triggers AI insights refresh when new data is available
+//
+// ARCHITECTURE NOTES:
+// - This runs CLIENT-SIDE in the browser to monitor for new data
+// - Calls Next.js API routes (/api/unified-mcp, /api/dashboard-stats)
+// - Next.js API routes use GPTOnlyAICoordinator which calls GPT-4 API
+// - MCP servers (in /mcp-servers/) are for local Ollama development (not used in production)
+// - All AI insights are now generated via GPT-4 API, not localhost MCP servers
+//
+// ERROR HANDLING:
+// - Network errors are normal during app startup and are handled gracefully
+// - The monitoring runs in background and will retry automatically
+// - No action needed if you see connection errors during first few seconds
 
 export class InsightUpdateManager {
   private static updateQueue: Set<string> = new Set();
@@ -77,52 +89,16 @@ export class InsightUpdateManager {
   }
 
   // Pre-generate insights for better performance
+  // DISABLED: This causes unnecessary GPT API calls and charges
   private static async preGenerateInsights() {
-    // Only run in browser environment
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const timeframes = ["week", "month"];
-
-    for (const timeframe of timeframes) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
-        const response = await fetch("/api/unified-mcp", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            action: "ai_insights",
-            timeframe,
-            includeProjections: true,
-            includeTrends: true,
-            cacheBuster: Date.now(),
-          }),
-        });
-
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          console.log(`✅ Pre-generated ${timeframe} insights`);
-        } else {
-          console.warn(
-            `Failed to pre-generate ${timeframe} insights: ${response.status}`
-          );
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-          console.warn(`Pre-generation of ${timeframe} insights timed out`);
-        } else {
-          console.warn(
-            `Failed to pre-generate ${timeframe} insights:`,
-            error instanceof Error ? error.message : "Unknown error"
-          );
-        }
-      }
-    }
+    // DISABLED TO SAVE API COSTS
+    // Previously this would pre-generate insights for week and month timeframes
+    // Now insights are only generated when user explicitly requests them
+    // This prevents automatic GPT API calls that cost money
+    console.log(
+      "💰 Insight pre-generation disabled to save API costs - insights load on demand only"
+    );
+    return;
   }
 
   // Force immediate refresh (called by upload components)
@@ -148,24 +124,21 @@ export class ScreenshotProcessingMonitor {
   private static monitoringActive = false;
 
   // Start monitoring for screenshot processing completion
+  // DISABLED: This was causing too many API calls and GPT charges
+  // Only check for updates when user explicitly uploads screenshots
   static startMonitoring() {
     if (this.monitoringActive || typeof window === "undefined") return;
 
     this.monitoringActive = true;
-    console.log("📸 Starting screenshot processing monitoring...");
+    console.log(
+      "📸 Screenshot monitoring ready (will check only on manual upload)"
+    );
 
-    // Wait 10 seconds before starting monitoring to let the app fully load
-    setTimeout(() => {
-      // Check for unprocessed screenshots every 30 seconds
-      setInterval(async () => {
-        await this.checkUnprocessedScreenshots();
-      }, 30000);
-
-      // Do an initial check after 5 seconds
-      setTimeout(() => {
-        this.checkUnprocessedScreenshots();
-      }, 5000);
-    }, 10000);
+    // REMOVED: Automatic polling every 30 seconds
+    // The monitoring will now only happen when:
+    // 1. User uploads a screenshot (via InsightUpdateManager.onScreenshotUpload)
+    // 2. User manually refreshes the page
+    // This prevents unnecessary API calls and GPT charges
   }
 
   // Check for unprocessed screenshots and trigger insights when processed
@@ -191,11 +164,14 @@ export class ScreenshotProcessingMonitor {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        console.warn(
-          `Dashboard stats API returned ${response.status}: ${
-            response.statusText
-          }`
-        );
+        // Only log if it's not a typical startup error
+        if (response.status !== 500 && response.status !== 503) {
+          console.log(
+            `📊 Dashboard stats API returned ${
+              response.status
+            } (will retry later)`
+          );
+        }
         return;
       }
 
@@ -219,15 +195,16 @@ export class ScreenshotProcessingMonitor {
         }
       }
     } catch (error) {
-      // Don't log error if it's just an abort (timeout)
-      if (error instanceof Error && error.name === "AbortError") {
-        console.warn(
-          "Screenshot processing check timed out - server might be starting up"
-        );
-      } else {
-        console.warn(
-          "Error checking screenshot processing (this is normal during startup):",
-          error instanceof Error ? error.message : "Unknown error"
+      // Silently handle errors - they're expected during startup
+      // Only log if it's been more than 30 seconds since page load
+      if (typeof window !== "undefined" && performance.now() > 30000) {
+        if (error instanceof Error && error.name === "AbortError") {
+          // Timeout - this is fine, server might be busy
+          return;
+        }
+        // Other errors after 30s might be worth noting
+        console.log(
+          "📡 Background screenshot monitoring (this is fine if you just started the app)"
         );
       }
     }

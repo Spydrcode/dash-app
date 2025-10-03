@@ -144,7 +144,10 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
   };
 
   useEffect(() => {
-    fetchInsights(timeframe);
+    // COST OPTIMIZATION: Don't automatically fetch insights on mount
+    // Only fetch when user explicitly requests them
+    console.log('💰 AI Insights Dashboard loaded - click "Generate Insights" button to load data');
+    setLoading(false); // Set loading to false since we're not auto-loading
     
     // Start monitoring screenshot processing
     ScreenshotProcessingMonitor.startMonitoring();
@@ -184,7 +187,9 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
 
   const handleTimeframeChange = (newTimeframe: string) => {
     onTimeframeChange?.(newTimeframe);
-    fetchInsights(newTimeframe);
+    // COST OPTIMIZATION: Don't auto-fetch on timeframe change
+    // User must click "Generate Insights" button explicitly
+    console.log(`💰 Timeframe changed to ${newTimeframe} - click "Generate Insights" to load data`);
   };
 
   const getPerformanceColor = (score: number) => {
@@ -217,19 +222,68 @@ const AIInsightsDashboard: React.FC<AIInsightsDashboardProps> = ({
     );
   }
 
-  if (error || !insights) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to load insights</h2>
-          <p className="text-gray-600 mb-4">{error || 'No data available'}</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error loading insights</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
           <button 
             onClick={() => fetchInsights(timeframe)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             Try Again
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!insights) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="text-blue-500 text-5xl mb-4">🤖</div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">AI Insights Ready</h2>
+          <p className="text-gray-600 mb-4">
+            💰 Cost-optimized: Insights are only generated when you click the button below.
+            <br />
+            This prevents automatic API charges.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={() => fetchInsights(timeframe)}
+              disabled={loading}
+              className={`px-6 py-3 rounded-lg font-medium text-white transition-all ${
+                loading 
+                  ? 'bg-blue-400 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-700 shadow-lg'
+              }`}
+            >
+              {loading ? '🤖 Generating Insights...' : '🧠 Generate AI Insights'}
+            </button>
+            
+            {/* Timeframe selector */}
+            <div className="flex justify-center gap-2 mt-4">
+              {['day', 'week', 'month', 'year'].map((period) => (
+                <button
+                  key={period}
+                  onClick={() => handleTimeframeChange(period)}
+                  className={`px-3 py-1 rounded text-sm font-medium capitalize ${
+                    timeframe === period
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500">
+              Selected timeframe: {timeframe} • This will analyze your {timeframe}ly trip data
+            </p>
+          </div>
         </div>
       </div>
     );

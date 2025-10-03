@@ -424,6 +424,13 @@ class AdvancedAnalyticsMCP {
 
 export async function POST(request: NextRequest) {
   try {
+    if (!supabaseAdmin) {
+      return NextResponse.json({ 
+        success: false,
+        error: 'Supabase configuration missing. Please configure environment variables.' 
+      }, { status: 500 });
+    }
+    
     const body = await request.json();
     const { 
       startDate, 

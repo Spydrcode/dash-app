@@ -172,7 +172,7 @@ export class AITrainingSystem {
   improveOCRExtraction(ocrText: string, expectedType: string): Record<string, unknown> {
     // Use patterns learned from existing successful extractions
     const patterns = this.getLearnedPatterns();
-    const _confidence = this.calculateExtractionConfidence(ocrText, patterns);
+    // const confidence = this.calculateExtractionConfidence(ocrText, patterns);
     
     // Apply learned patterns to improve extraction
     const extractedData: ExtractedTripData = {};

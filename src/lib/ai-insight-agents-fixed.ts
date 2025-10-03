@@ -93,7 +93,7 @@ export class TimeAnalysisAgent {
 
 // Simple AI Insights Coordinator that reports REAL data
 export class AIInsightsCoordinator {
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, _options: Record<string, unknown>) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string) {
     console.log(`🤖 AI Insights Coordinator: Analyzing ${trips.length} trips for REAL performance data`);
     
     // Validate for quality insights but DON'T filter the data

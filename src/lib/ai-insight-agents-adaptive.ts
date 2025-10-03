@@ -103,7 +103,7 @@ export class AdaptiveAIInsightsCoordinator {
         rated_mpg: 19,
         efficiency_rating: 'Based on YOUR actual driving patterns',
         total_fuel_cost: (realTotals.distance * 0.18) || 0,
-        fuel_efficiency_vs_rated: this.compareFuelEfficiency(realTotals.distance, realTotals.activeDays)
+        fuel_efficiency_vs_rated: this.compareFuelEfficiency()
       },
       learning_metrics: {
         data_quality_score: validationResult.stats.cleanedCount / validationResult.stats.originalCount * 100,
@@ -265,8 +265,8 @@ export class AdaptiveAIInsightsCoordinator {
     return Math.round(actualMPG * 10) / 10;
   }
 
-  // Compare fuel efficiency to EPA ratings
-  private static compareFuelEfficiency(totalMiles: number, activeDays: number): string {
+  // Compare fuel efficiency to EPA ratings  
+  private static compareFuelEfficiency(): string {
     const actualMPG = this.calculateActualMPG();
     const ratedMPG = 19;
     

@@ -109,7 +109,7 @@ export class TimeAnalysisAgent {
 
 // FIXED AI Insights Coordinator - Proper performance scoring and deduplication
 export class AIInsightsCoordinator {
-  static async generateCompleteInsights(trips: TripData[], timeframe: string, _options: Record<string, unknown>) {
+  static async generateCompleteInsights(trips: TripData[], timeframe: string) {
     console.log(`🤖 AI Insights Coordinator: Analyzing ${trips.length} records for ACTUAL performance`);
     
     // Validate for quality insights but DON'T filter the data

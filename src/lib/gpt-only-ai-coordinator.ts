@@ -190,6 +190,9 @@ export class GPTOnlyAICoordinator {
 
     try {
       // Get all unprocessed or old screenshots
+      if (!supabaseAdmin) {
+        throw new Error('Supabase admin client not initialized');
+      }
       const { data: allScreenshots } = await supabaseAdmin
         .from('trip_screenshots')
         .select('*')
@@ -263,6 +266,10 @@ export class GPTOnlyAICoordinator {
 
   private async updateScreenshotRecord(screenshotId: string, result: Record<string, unknown>): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       await supabaseAdmin
         .from('trip_screenshots')
         .update({
@@ -279,6 +286,7 @@ export class GPTOnlyAICoordinator {
 
   private async getCumulativeInsights(): Promise<Record<string, unknown> | null> {
     try {
+      if (!supabaseAdmin) return null;
       const { data } = await supabaseAdmin
         .from('cumulative_insights')
         .select('*')
@@ -286,13 +294,17 @@ export class GPTOnlyAICoordinator {
         .single();
 
       return data;
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
 
   private async saveCumulativeInsights(totals: Record<string, unknown>, insights: Record<string, unknown>): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       await supabaseAdmin
         .from('cumulative_insights')
         .update({
@@ -316,6 +328,10 @@ export class GPTOnlyAICoordinator {
 
   private async resetCumulativeInsights(): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       await supabaseAdmin
         .from('cumulative_insights')
         .update({
@@ -344,6 +360,7 @@ export class GPTOnlyAICoordinator {
 
   private async calculateActiveDays(): Promise<number> {
     try {
+      if (!supabaseAdmin) return 1;
       const { data } = await supabaseAdmin
         .from('trips')
         .select('created_at')
@@ -357,7 +374,7 @@ export class GPTOnlyAICoordinator {
       });
 
       return uniqueDates.size;
-    } catch (_error) {
+    } catch {
       return 1; // Fallback
     }
   }

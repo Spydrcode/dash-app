@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // Helper functions for data extraction
-async function extractWithLLaVA(screenshot: Record<string, unknown>, supabaseAdmin: any) {
+async function extractWithLLaVA(screenshot: Record<string, unknown>) {
   try {
     console.log(`👁️ Extracting data from ${screenshot.screenshot_type} screenshot ${screenshot.id}`);
     
@@ -43,6 +43,7 @@ async function extractWithLLaVA(screenshot: Record<string, unknown>, supabaseAdm
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function compileAllData(supabaseAdmin: any) {
   try {
     console.log('📊 Compiling all extracted data...');
@@ -58,23 +59,23 @@ async function compileAllData(supabaseAdmin: any) {
     let totalTrips = 0;
     const dailyData: Record<string, Record<string, number>> = {};
 
-    allScreenshots?.forEach(screenshot => {
-      const data = screenshot.extracted_data;
-      const date = screenshot.created_at.split('T')[0];
+    allScreenshots?.forEach((screenshot: Record<string, unknown>) => {
+      const data = screenshot.extracted_data as Record<string, unknown>;
+      const date = (screenshot.created_at as string).split('T')[0];
       
       if (!dailyData[date]) {
         dailyData[date] = { earnings: 0, distance: 0, trips: 0 };
       }
       
-      if (data.driver_earnings) {
+      if (data?.driver_earnings && typeof data.driver_earnings === 'number') {
         totalEarnings += data.driver_earnings;
         dailyData[date].earnings += data.driver_earnings;
       }
-      if (data.distance) {
+      if (data?.distance && typeof data.distance === 'number') {
         totalDistance += data.distance;
         dailyData[date].distance += data.distance;
       }
-      if (data.total_trips) {
+      if (data?.total_trips && typeof data.total_trips === 'number') {
         totalTrips += data.total_trips;
         dailyData[date].trips += data.total_trips;
       }
@@ -169,9 +170,9 @@ export async function POST() {
 
     for (const screenshot of needsProcessing.slice(0, 15)) { // Process 15 screenshots
       try {
-        const extractedData = await extractWithLLaVA(screenshot, supabaseAdmin);
+        const extractedData = await extractWithLLaVA(screenshot);
         
-        if (extractedData && extractedData.driver_earnings) {
+        if (extractedData && (extractedData as Record<string, unknown>).driver_earnings) {
           // Update screenshot with extracted data
           await supabaseAdmin
             .from('trip_screenshots')
@@ -189,9 +190,10 @@ export async function POST() {
             .eq('id', screenshot.id);
 
           successfulExtractions++;
-          totalEarningsFound += typeof extractedData.driver_earnings === 'number' ? extractedData.driver_earnings : 0;
-          totalTripsFound += typeof extractedData.total_trips === 'number' ? extractedData.total_trips : 1;
-          totalDistanceFound += typeof extractedData.distance === 'number' ? extractedData.distance : 0;
+          const data = extractedData as Record<string, unknown>;
+          totalEarningsFound += typeof data.driver_earnings === 'number' ? data.driver_earnings : 0;
+          totalTripsFound += typeof data.total_trips === 'number' ? data.total_trips : 1;
+          totalDistanceFound += typeof data.distance === 'number' ? data.distance : 0;
 
           console.log(`✅ Screenshot ${screenshot.id}: $${extractedData.driver_earnings}, ${extractedData.distance}mi, ${extractedData.total_trips} trips`);
         }
@@ -271,9 +273,10 @@ export async function GET() {
 
     screenshots?.forEach(s => {
       if (s.extracted_data) {
-        totalExtractedEarnings += s.extracted_data.driver_earnings || 0;
-        totalExtractedTrips += s.extracted_data.total_trips || 0;
-        totalExtractedDistance += s.extracted_data.distance || 0;
+        const data = s.extracted_data as Record<string, unknown>;
+        totalExtractedEarnings += typeof data.driver_earnings === 'number' ? data.driver_earnings : 0;
+        totalExtractedTrips += typeof data.total_trips === 'number' ? data.total_trips : 0;
+        totalExtractedDistance += typeof data.distance === 'number' ? data.distance : 0;
       }
     });
 

@@ -4,7 +4,7 @@ import AIInsightsDashboard from "@/components/AIInsightsDashboard";
 import NotificationSystem from "@/components/NotificationSystem";
 import { InsightUpdateManager } from "@/lib/insight-update-manager";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface DashboardStats {
   totalTrips: number;
@@ -37,31 +37,32 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const response = await fetch('/api/dashboard-stats');
-      const data = await response.json();
-      if (data.success) {
-        const newStats = data.stats;
-        
-        // Check if processed screenshots increased (indicating new data)
-        if (stats && newStats.processedScreenshots > stats.processedScreenshots) {
-          console.log('📊 New screenshots processed - triggering AI insights update');
-          InsightUpdateManager.forceRefresh();
-        }
-        
-        setStats(newStats);
-      }
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [stats]);
-
   useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/dashboard-stats');
+        const data = await response.json();
+        if (data.success) {
+          const newStats = data.stats;
+          
+          // Check if processed screenshots increased (indicating new data)
+          setStats((prevStats) => {
+            if (prevStats && newStats.processedScreenshots > prevStats.processedScreenshots) {
+              console.log('📊 New screenshots processed - triggering AI insights update');
+              InsightUpdateManager.forceRefresh();
+            }
+            return newStats;
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchStats();
-  }, [refreshTrigger, fetchStats]);
+  }, [refreshTrigger]); // Only re-fetch when refreshTrigger changes
 
   const handleRefresh = () => {
     setRefreshTrigger(prev => prev + 1);

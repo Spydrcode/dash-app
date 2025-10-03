@@ -4,12 +4,20 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-// Multi-Stage Pipeline to fix data accuracy issues
+// Multi-stage pipeline to fix data accuracy issues
 export async function POST() {
   try {
     // Initialize Supabase client inside the function to avoid build-time errors
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json({ 
+        error: 'Missing Supabase configuration',
+        details: 'NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set'
+      }, { status: 500 });
+    }
+    
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     console.log('🔧 FIXING DATA EXTRACTION PIPELINE...');
@@ -124,7 +132,7 @@ export async function POST() {
     const compiledData = await compileAllData(supabaseAdmin);
 
     // Step 6: Generate corrected insights using DeepSeek-R1
-    const correctedInsights = await generateCorrectedInsights(compiledData);
+    const correctedInsights = compiledData ? await generateCorrectedInsights(compiledData) : { error: 'No compiled data available' };
 
     console.log('✅ MULTI-STAGE PIPELINE COMPLETE!');
 
@@ -198,9 +206,9 @@ async function extractWithGPTVision(screenshot: Record<string, unknown>) {
 }
 
 // Compile all extracted data
-async function compileAllData(supabaseAdmin: any) {
+async function compileAllData(supabaseAdmin: unknown) {
     try {
-      const { data: allScreenshots } = await supabaseAdmin
+      const { data: allScreenshots } = await (supabaseAdmin as ReturnType<typeof createClient>)
         .from('trip_screenshots')
         .select('extracted_data, screenshot_type, created_at')
         .eq('is_processed', true)
@@ -211,23 +219,23 @@ async function compileAllData(supabaseAdmin: any) {
       let totalTrips = 0;
       const dailyData: Record<string, Record<string, number>> = {};
 
-      allScreenshots?.forEach((screenshot: any) => {
-        const data = screenshot.extracted_data;
-        const date = screenshot.created_at.split('T')[0];
+      allScreenshots?.forEach((screenshot: Record<string, unknown>) => {
+        const data = screenshot.extracted_data as Record<string, number> | undefined;
+        const date = (screenshot.created_at as string)?.split('T')[0] || new Date().toISOString().split('T')[0];
         
         if (!dailyData[date]) {
           dailyData[date] = { earnings: 0, distance: 0, trips: 0 };
         }
         
-        if (data.driver_earnings) {
+        if (data?.driver_earnings) {
           totalEarnings += data.driver_earnings;
           dailyData[date].earnings += data.driver_earnings;
         }
-        if (data.distance) {
+        if (data?.distance) {
           totalDistance += data.distance;
           dailyData[date].distance += data.distance;
         }
-        if (data.total_trips) {
+        if (data?.total_trips) {
           totalTrips += data.total_trips;
           dailyData[date].trips += data.total_trips;
         }
@@ -241,13 +249,16 @@ async function compileAllData(supabaseAdmin: any) {
         daily_breakdown: dailyData,
         avg_per_trip: totalTrips > 0 ? totalEarnings / totalTrips : 0,
         profit: totalEarnings * 0.7,
-        fuel_cost: totalDistance * 0.18
+        fuel_cost: totalEarnings * 0.3
       };
     } catch (error) {
-      console.error('Data compilation failed:', error);
-      return { error: 'Compilation failed' };
+      console.error('Compilation error:', error);
+      return null;
     }
 }
+
+// Generate corrected insights helper function removed (duplicate)
+// Implementation is in the main generateCorrectedInsights function below
 
 // Generate corrected insights with DeepSeek-R1
 async function generateCorrectedInsights(compiledData: Record<string, unknown>) {
@@ -278,8 +289,8 @@ async function generateCorrectedInsights(compiledData: Record<string, unknown>) 
 export async function GET() {
   try {
     // Initialize Supabase client inside the function to avoid build-time errors
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
     // Check screenshot processing status

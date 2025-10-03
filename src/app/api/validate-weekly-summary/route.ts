@@ -42,13 +42,12 @@ class WeeklySummaryValidationAgent {
       const recommendations = this.generateAccuracyRecommendations(discrepancies, validation);
       
       // Step 7: Save weekly summary to database
-      // await supabaseAdmin.saveWeeklySummary(
+      // await this.saveWeeklySummaryToDatabase(
       //   weeklyData, 
       //   validation, 
       //   discrepancies, 
       //   weekPeriod,
-      //   imagePath,
-      //   fileMetadata
+      //   imagePath
       // );
       
       return {
@@ -209,7 +208,12 @@ class WeeklySummaryValidationAgent {
         const startDateTime = new Date(endDateTime);
         startDateTime.setDate(startDateTime.getDate() - 7);
         
-        const { data: trips, error: _error } = await supabaseAdmin
+        if (!supabaseAdmin) {
+          console.error('Supabase admin client not initialized');
+          return [];
+        }
+        
+        const { data: trips } = await supabaseAdmin
           .from('trips')
           .select(`
             *,
@@ -229,6 +233,10 @@ class WeeklySummaryValidationAgent {
       }
       
       // Use provided date range
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return [];
+      }
       const { data: trips, error } = await supabaseAdmin
         .from('trips')
         .select(`
@@ -432,6 +440,9 @@ class WeeklySummaryValidationAgent {
   ): Promise<Record<string, unknown>> {
     try {
       // Create a trip record for the weekly summary
+      if (!supabaseAdmin) {
+        throw new Error('Supabase admin client not initialized');
+      }
       const { data: summaryTrip, error: tripError } = await supabaseAdmin
         .from('trips')
         .insert({
@@ -552,9 +563,11 @@ class WeeklySummaryValidationAgent {
         execution_time_ms: Date.now() % 10000 // Approximate processing time
       };
       
-      await supabaseAdmin
-        .from('reanalysis_sessions')
-        .insert(sessionData);
+      if (supabaseAdmin) {
+        await supabaseAdmin
+          .from('reanalysis_sessions')
+          .insert(sessionData);
+      }
         
       console.log('Reanalysis session created for dashboard refresh');
     } catch (error) {
@@ -566,7 +579,7 @@ class WeeklySummaryValidationAgent {
 
 export async function POST(request: NextRequest) {
   try {
-    const { imagePath, weekPeriod, fileMetadata } = await request.json();
+    const { imagePath, weekPeriod } = await request.json();
     
     console.log('Weekly Summary Validation Route: Processing weekly summary');
     console.log('Week Period:', weekPeriod);
@@ -579,12 +592,6 @@ export async function POST(request: NextRequest) {
     }
 
     const agent = new WeeklySummaryValidationAgent();
-    const _metadata = {
-      originalName: fileMetadata?.originalName || '',
-      fileHash: fileMetadata?.fileHash || '',
-      perceptualHash: fileMetadata?.perceptualHash || '',
-      fileSize: fileMetadata?.fileSize || 0
-    };
     const result = await agent.processWeeklySummary(imagePath, weekPeriod);
 
     if (!result.success) {

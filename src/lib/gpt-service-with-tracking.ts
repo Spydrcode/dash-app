@@ -225,6 +225,10 @@ export class GPTServiceWithTracking {
   // Token usage tracking methods
   private async saveTokenUsage(usage: TokenUsage): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       await supabaseAdmin
         .from('token_usage_log')
         .insert({
@@ -250,6 +254,7 @@ export class GPTServiceWithTracking {
   // Smart caching methods
   private async getCachedScreenshotResult(screenshotId: string): Promise<Record<string, unknown> | null> {
     try {
+      if (!supabaseAdmin) return null;
       const { data } = await supabaseAdmin
         .from('screenshot_cache')
         .select('*')
@@ -257,13 +262,17 @@ export class GPTServiceWithTracking {
         .single();
 
       return data?.result_data || null;
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
 
   private async cacheScreenshotResult(screenshotId: string, result: Record<string, unknown>, tokenUsage: TokenUsage): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       await supabaseAdmin
         .from('screenshot_cache')
         .upsert({
@@ -279,6 +288,7 @@ export class GPTServiceWithTracking {
 
   private async getCachedInsights(data: Record<string, unknown>): Promise<CachedInsight | null> {
     try {
+      if (!supabaseAdmin) return null;
       const dataHash = this.generateDataHash(data);
       
       const { data: cached } = await supabaseAdmin
@@ -293,13 +303,17 @@ export class GPTServiceWithTracking {
       }
 
       return null;
-    } catch (_error) {
+    } catch {
       return null;
     }
   }
 
   private async cacheInsights(data: Record<string, unknown>, insights: Record<string, unknown>, tokenUsage: TokenUsage): Promise<void> {
     try {
+      if (!supabaseAdmin) {
+        console.error('Supabase admin client not initialized');
+        return;
+      }
       const dataHash = this.generateDataHash(data);
       
       await supabaseAdmin
@@ -320,6 +334,9 @@ export class GPTServiceWithTracking {
   // Public methods for token monitoring
   public async getTokenUsageSummary(): Promise<Record<string, unknown>> {
     try {
+      if (!supabaseAdmin) {
+        return { total_tokens: 0, total_cost: 0, requests_count: 0, error: 'Supabase not initialized' };
+      }
       const { data: usageData } = await supabaseAdmin
         .from('token_usage_log')
         .select('*')
